@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { checkForUpdates } from './updateCheck';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { checkForUpdates, FETCH_TIMEOUT_MS } from './updateCheck.js';
 
 const getPackageJson = vi.hoisted(() => vi.fn());
 vi.mock('../../utils/package.js', () => ({
@@ -19,8 +19,33 @@ vi.mock('update-notifier', () => ({
 
 describe('checkForUpdates', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.resetAllMocks();
     vi.clearAllTimers();
+    // Clear DEV environment variable before each test
+    delete process.env.DEV;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('should return null when running from source (DEV=true)', async () => {
+    process.env.DEV = 'true';
+    getPackageJson.mockResolvedValue({
+      name: 'test-package',
+      version: '1.0.0',
+    });
+    updateNotifier.mockReturnValue({
+      fetchInfo: vi
+        .fn()
+        .mockResolvedValue({ current: '1.0.0', latest: '1.1.0' }),
+    });
+    const result = await checkForUpdates();
+    expect(result).toBeNull();
+    expect(getPackageJson).not.toHaveBeenCalled();
+    expect(updateNotifier).not.toHaveBeenCalled();
   });
 
   it('should return null if package.json is missing', async () => {
@@ -35,7 +60,7 @@ describe('checkForUpdates', () => {
       version: '1.0.0',
     });
     updateNotifier.mockReturnValue({
-      fetchInfo: vi.fn(async () => null),
+      fetchInfo: vi.fn().mockResolvedValue(null),
     });
     const result = await checkForUpdates();
     expect(result).toBeNull();
@@ -47,7 +72,9 @@ describe('checkForUpdates', () => {
       version: '1.0.0',
     });
     updateNotifier.mockReturnValue({
-      fetchInfo: vi.fn(async () => ({ current: '1.0.0', latest: '1.1.0' })),
+      fetchInfo: vi
+        .fn()
+        .mockResolvedValue({ current: '1.0.0', latest: '1.1.0' }),
     });
 
     const result = await checkForUpdates();
@@ -61,7 +88,9 @@ describe('checkForUpdates', () => {
       version: '1.0.0',
     });
     updateNotifier.mockReturnValue({
-      fetchInfo: vi.fn(async () => ({ current: '1.0.0', latest: '1.0.0' })),
+      fetchInfo: vi
+        .fn()
+        .mockResolvedValue({ current: '1.0.0', latest: '1.0.0' }),
     });
     const result = await checkForUpdates();
     expect(result).toBeNull();
@@ -73,9 +102,32 @@ describe('checkForUpdates', () => {
       version: '1.1.0',
     });
     updateNotifier.mockReturnValue({
-      fetchInfo: vi.fn(async () => ({ current: '1.0.0', latest: '0.09' })),
+      fetchInfo: vi
+        .fn()
+        .mockResolvedValue({ current: '1.1.0', latest: '1.0.0' }),
     });
     const result = await checkForUpdates();
+    expect(result).toBeNull();
+  });
+
+  it('should return null if fetchInfo times out', async () => {
+    getPackageJson.mockResolvedValue({
+      name: 'test-package',
+      version: '1.0.0',
+    });
+    updateNotifier.mockReturnValue({
+      fetchInfo: vi.fn(
+        async () =>
+          new Promise((resolve) => {
+            setTimeout(() => {
+              resolve({ current: '1.0.0', latest: '1.1.0' });
+            }, FETCH_TIMEOUT_MS + 1);
+          }),
+      ),
+    });
+    const promise = checkForUpdates();
+    await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS);
+    const result = await promise;
     expect(result).toBeNull();
   });
 
