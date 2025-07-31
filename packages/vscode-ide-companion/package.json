@@ -2,7 +2,7 @@
   "name": "llxprt-code-vscode-ide-companion",
   "displayName": "LLxprt Code VSCode IDE Companion",
   "description": "VS Code companion extension for LLxprt Code CLI",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "publisher": "vybestack",
   "icon": "assets/icon.png",
   "repository": {
