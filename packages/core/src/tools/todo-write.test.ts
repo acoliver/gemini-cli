@@ -293,7 +293,7 @@ describe('TodoWrite', () => {
       ).rejects.toThrow('Write failed');
     });
   });
-  
+
   describe('interactive mode', () => {
     it('should suppress output in interactive mode', async () => {
       const interactiveTool = Object.assign(

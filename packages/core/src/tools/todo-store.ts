@@ -23,12 +23,12 @@ export class TodoStore {
     try {
       const content = await fs.readFile(filePath, 'utf-8');
       const rawData = JSON.parse(content);
-      
+
       // If it's already an array of ExtendedTodo, return as is
       if (Array.isArray(rawData)) {
         return rawData as ExtendedTodo[];
       }
-      
+
       // Handle any unexpected data format
       return [];
     } catch (error) {

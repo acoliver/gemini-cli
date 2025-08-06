@@ -194,7 +194,9 @@ describe('TodoSchemas', () => {
         name: 'readFile',
         parameters: {},
       };
-      expect(() => TodoToolCallSchema.parse(toolCallWithEmptyParams)).not.toThrow();
+      expect(() =>
+        TodoToolCallSchema.parse(toolCallWithEmptyParams),
+      ).not.toThrow();
     });
 
     it('should reject tool call with missing fields', () => {
@@ -241,7 +243,9 @@ describe('TodoSchemas', () => {
           },
         ],
       };
-      expect(() => SubtaskSchema.parse(validSubtaskWithToolCalls)).not.toThrow();
+      expect(() =>
+        SubtaskSchema.parse(validSubtaskWithToolCalls),
+      ).not.toThrow();
     });
 
     it('should reject subtask with empty content', () => {
@@ -298,7 +302,9 @@ describe('TodoSchemas', () => {
           },
         ],
       };
-      expect(() => ExtendedTodoSchema.parse(validExtendedTodoWithSubtasks)).not.toThrow();
+      expect(() =>
+        ExtendedTodoSchema.parse(validExtendedTodoWithSubtasks),
+      ).not.toThrow();
     });
 
     it('should reject extended todo with invalid subtasks', () => {
@@ -314,7 +320,9 @@ describe('TodoSchemas', () => {
           },
         ],
       };
-      expect(() => ExtendedTodoSchema.parse(extendedTodoWithInvalidSubtasks)).toThrow();
+      expect(() =>
+        ExtendedTodoSchema.parse(extendedTodoWithInvalidSubtasks),
+      ).toThrow();
     });
   });
 
@@ -353,7 +361,9 @@ describe('TodoSchemas', () => {
           priority: 'medium',
         },
       ];
-      expect(() => ExtendedTodoArraySchema.parse(validExtendedTodos)).not.toThrow();
+      expect(() =>
+        ExtendedTodoArraySchema.parse(validExtendedTodos),
+      ).not.toThrow();
     });
 
     it('should reject array with invalid extended todos', () => {
@@ -371,7 +381,9 @@ describe('TodoSchemas', () => {
           priority: 'high',
         },
       ];
-      expect(() => ExtendedTodoArraySchema.parse(invalidExtendedTodos)).toThrow();
+      expect(() =>
+        ExtendedTodoArraySchema.parse(invalidExtendedTodos),
+      ).toThrow();
     });
   });
 

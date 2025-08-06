@@ -93,6 +93,7 @@ export * from './tools/todo-write.js';
 export { ExtendedTodo } from './tools/todo-schemas.js';
 export * from './tools/todo-schemas.js';
 export * from './tools/todo-store.js';
+export * from './tools/todo-events.js';
 
 // MCP OAuth
 export { MCPOAuthProvider } from './mcp/oauth-provider.js';

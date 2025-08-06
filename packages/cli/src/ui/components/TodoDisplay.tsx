@@ -30,7 +30,7 @@ interface ToolCall {
 
 const formatParameters = (parameters: Record<string, unknown>): string => {
   const paramStrings: string[] = [];
-  
+
   for (const [key, value] of Object.entries(parameters)) {
     if (typeof value === 'string') {
       paramStrings.push(`${key}: '${value}'`);
@@ -38,7 +38,7 @@ const formatParameters = (parameters: Record<string, unknown>): string => {
       paramStrings.push(`${key}: ${JSON.stringify(value)}`);
     }
   }
-  
+
   return paramStrings.join(', ');
 };
 
@@ -51,19 +51,19 @@ const renderTodo = (todo: Todo): string => {
   } else if (todo.status === 'in_progress') {
     marker = '- [→]';
   }
-  
+
   let taskLine = `${marker} ${todo.content}`;
-  
+
   if (todo.status === 'in_progress') {
     taskLine = `**${taskLine}** ← current task`;
   }
-  
+
   let result = taskLine;
-  
+
   if (todo.subtasks && todo.subtasks.length > 0) {
     for (const subtask of todo.subtasks) {
       result += `\n    • ${subtask.content}`;
-      
+
       if (subtask.toolCalls && subtask.toolCalls.length > 0) {
         for (const toolCall of subtask.toolCalls) {
           result += `\n        ↳ ${toolCall.name}(${formatParameters(toolCall.parameters)})`;
@@ -71,13 +71,13 @@ const renderTodo = (todo: Todo): string => {
       }
     }
   }
-  
+
   return result;
 };
 
 export const TodoDisplay: React.FC = () => {
   const { todos } = useTodoContext();
-  
+
   if (todos.length === 0) {
     return (
       <Box>
@@ -85,14 +85,14 @@ export const TodoDisplay: React.FC = () => {
       </Box>
     );
   }
-  
+
   let display = '## Todo List (temporal order)\n\n';
-  
+
   for (const todo of todos) {
     display += renderTodo(todo);
     display += '\n';
   }
-  
+
   return (
     <Box>
       <Text>{display}</Text>

@@ -42,6 +42,7 @@ const defaultContextValue: TodoContextType = {
   },
 };
 
-export const TodoContext = React.createContext<TodoContextType>(defaultContextValue);
+export const TodoContext =
+  React.createContext<TodoContextType>(defaultContextValue);
 
 export const useTodoContext = () => React.useContext(TodoContext);

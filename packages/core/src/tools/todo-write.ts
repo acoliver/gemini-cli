@@ -9,6 +9,7 @@ import { BaseTool, ToolResult, Icon } from './tools.js';
 import { ExtendedTodo, ExtendedTodoArraySchema } from './todo-schemas.js';
 import { TodoStore } from './todo-store.js';
 import { TodoReminderService } from '../services/todo-reminder-service.js';
+import { todoEvents, TodoUpdateEvent } from './todo-events.js';
 
 export interface TodoWriteParams {
   todos: ExtendedTodo[];
@@ -72,7 +73,8 @@ export class TodoWrite extends BaseTool<TodoWriteParams, ToolResult> {
                           properties: {
                             id: {
                               type: Type.STRING,
-                              description: 'Unique identifier for the tool call',
+                              description:
+                                'Unique identifier for the tool call',
                             },
                             name: {
                               type: Type.STRING,
@@ -150,11 +152,22 @@ export class TodoWrite extends BaseTool<TodoWriteParams, ToolResult> {
     // Determine if we're in interactive mode
     const isInteractive = this.context?.interactiveMode || false;
 
+    // Emit event for UI update in interactive mode
+    if (isInteractive) {
+      const event: TodoUpdateEvent = {
+        sessionId,
+        agentId,
+        todos: params.todos,
+        timestamp: new Date(),
+      };
+      todoEvents.emitTodoUpdated(event);
+    }
+
     // Generate output based on mode
     let output: string;
     if (isInteractive) {
       // In interactive mode, suppress markdown and return minimal result
-      output = "TODO list updated";
+      output = 'TODO list updated';
     } else {
       // In non-interactive mode, provide simplified markdown
       output = this.generateSimplifiedOutput(params.todos);
@@ -165,7 +178,7 @@ export class TodoWrite extends BaseTool<TodoWriteParams, ToolResult> {
 
     return {
       llmContent: output + (reminder || ''),
-      returnDisplay: isInteractive ? "" : output, // Empty to suppress display in interactive mode
+      returnDisplay: isInteractive ? '' : output, // Empty to suppress display in interactive mode
       metadata: {
         stateChanged: this.reminderService.shouldGenerateReminder(stateChange),
         todosAdded: stateChange.added.length,
@@ -179,21 +192,21 @@ export class TodoWrite extends BaseTool<TodoWriteParams, ToolResult> {
 
   private generateSimplifiedOutput(todos: ExtendedTodo[]): string {
     let output = `## Todo List (${todos.length} tasks)\n`;
-    
+
     for (const todo of todos) {
       // Determine status marker
-      let marker = "";
-      if (todo.status === "completed") {
-        marker = "- [x]";
-      } else if (todo.status === "pending") {
-        marker = "- [ ]";
-      } else if (todo.status === "in_progress") {
-        marker = "- [→] ← current";
+      let marker = '';
+      if (todo.status === 'completed') {
+        marker = '- [x]';
+      } else if (todo.status === 'pending') {
+        marker = '- [ ]';
+      } else if (todo.status === 'in_progress') {
+        marker = '- [→] ← current';
       }
-      
+
       output += `${marker} ${todo.content}\n`;
     }
-    
+
     return output;
   }
 

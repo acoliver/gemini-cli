@@ -115,6 +115,9 @@ import { ProviderDialog } from './components/ProviderDialog.js';
 import { LoadProfileDialog } from './components/LoadProfileDialog.js';
 import { ToolsDialog } from './components/ToolsDialog.js';
 
+// Todo UI imports
+import { TodoDisplay } from './components/TodoDisplay.js';
+
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 
 interface AppProps {
@@ -124,10 +127,14 @@ interface AppProps {
   version: string;
 }
 
+import { TodoProvider } from './contexts/TodoProvider.js';
+
 export const AppWrapper = (props: AppProps) => (
   <SessionStatsProvider>
     <VimModeProvider settings={props.settings}>
-      <AppWithState {...props} />
+      <TodoProvider sessionId={props.config.getSessionId()}>
+        <AppWithState {...props} />
+      </TodoProvider>
     </VimModeProvider>
   </SessionStatsProvider>
 );
@@ -1194,22 +1201,25 @@ const App = (props: AppInternalProps) => {
               )}
 
               {isInputActive && (
-                <InputPrompt
-                  buffer={buffer}
-                  inputWidth={inputWidth}
-                  suggestionsWidth={suggestionsWidth}
-                  onSubmit={handleFinalSubmit}
-                  userMessages={userMessages}
-                  onClearScreen={handleClearScreen}
-                  config={config}
-                  slashCommands={slashCommands}
-                  commandContext={commandContext}
-                  shellModeActive={shellModeActive}
-                  setShellModeActive={setShellModeActive}
-                  focus={isFocused}
-                  vimHandleInput={vimHandleInput}
-                  placeholder={placeholder}
-                />
+                <>
+                  <TodoDisplay />
+                  <InputPrompt
+                    buffer={buffer}
+                    inputWidth={inputWidth}
+                    suggestionsWidth={suggestionsWidth}
+                    onSubmit={handleFinalSubmit}
+                    userMessages={userMessages}
+                    onClearScreen={handleClearScreen}
+                    config={config}
+                    slashCommands={slashCommands}
+                    commandContext={commandContext}
+                    shellModeActive={shellModeActive}
+                    setShellModeActive={setShellModeActive}
+                    focus={isFocused}
+                    vimHandleInput={vimHandleInput}
+                    placeholder={placeholder}
+                  />
+                </>
               )}
             </>
           )}

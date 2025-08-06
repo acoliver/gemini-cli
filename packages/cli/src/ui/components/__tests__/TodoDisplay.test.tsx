@@ -44,11 +44,11 @@ const renderWithContext = (todos: Todo[] = []) => {
     ...mockTodoContextValue,
     todos,
   };
-  
+
   return render(
     <TodoContext.Provider value={contextValue}>
       <TodoDisplay />
-    </TodoContext.Provider>
+    </TodoContext.Provider>,
   );
 };
 
@@ -61,7 +61,9 @@ const renderWithContext = (todos: Todo[] = []) => {
  */
 it('displays appropriate message for empty todo list', () => {
   const { lastFrame } = renderWithContext([]);
-  expect(lastFrame()).toContain('Todo list is empty – use TodoWrite to add tasks.');
+  expect(lastFrame()).toContain(
+    'Todo list is empty – use TodoWrite to add tasks.',
+  );
 });
 
 /**
@@ -430,7 +432,9 @@ it('formats tool call parameters correctly', () => {
   const output = lastFrame();
   expect(output).toContain('- [ ] Main task');
   expect(output).toContain('    • Subtask with complex parameters');
-  expect(output).toContain("        ↳ editFile(filePath: '/path/to/file.ts', content: 'console.log(\"Hello World\");')");
+  expect(output).toContain(
+    "        ↳ editFile(filePath: '/path/to/file.ts', content: 'console.log(\"Hello World\");')",
+  );
 });
 
 /**
@@ -471,7 +475,9 @@ it('renders tasks with special characters correctly', () => {
     },
   ];
   const { lastFrame } = renderWithContext(todos);
-  expect(lastFrame()).toContain('- [ ] Task with special chars: !@#$%^&*()_+-=[]{}|;:,.<>?');
+  expect(lastFrame()).toContain(
+    '- [ ] Task with special chars: !@#$%^&*()_+-=[]{}|;:,.<>?',
+  );
 });
 
 /**
@@ -529,7 +535,7 @@ it('re-renders when context updates', () => {
     },
   ];
   const { lastFrame, rerender } = renderWithContext(todos);
-  
+
   const contextValue = {
     ...mockTodoContextValue,
     todos: [
@@ -541,12 +547,12 @@ it('re-renders when context updates', () => {
       },
     ],
   };
-  
+
   rerender(
     <TodoContext.Provider value={contextValue}>
       <TodoDisplay />
-    </TodoContext.Provider>
+    </TodoContext.Provider>,
   );
-  
+
   expect(lastFrame()).toContain('**- [→] Updated task** ← current task');
 });
