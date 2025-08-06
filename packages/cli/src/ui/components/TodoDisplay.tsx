@@ -45,11 +45,11 @@ const formatParameters = (parameters: Record<string, unknown>): string => {
 const renderTodo = (todo: Todo): string => {
   let marker = '';
   if (todo.status === 'completed') {
-    marker = '- [x]';
+    marker = '- ✔';
   } else if (todo.status === 'pending') {
-    marker = '- [ ]';
+    marker = '- ○';
   } else if (todo.status === 'in_progress') {
-    marker = '- [→]';
+    marker = '- →';
   }
 
   let taskLine = `${marker} ${todo.content}`;
