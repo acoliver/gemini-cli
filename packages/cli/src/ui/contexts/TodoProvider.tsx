@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   TodoStore,
-  ExtendedTodo,
+  Todo,
   todoEvents,
   type TodoUpdateEvent,
 } from '@vybestack/llxprt-code-core';
@@ -14,9 +14,9 @@ interface TodoProviderProps {
 
 export const TodoProvider: React.FC<TodoProviderProps> = ({
   children,
-  sessionId,
+  sessionId = 'default',
 }) => {
-  const [todos, setTodos] = useState<ExtendedTodo[]>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,7 +63,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({
   }, [sessionId, refreshTodos]);
 
   const updateTodos = useCallback(
-    (newTodos: ExtendedTodo[]) => {
+    (newTodos: Todo[]) => {
       setTodos(newTodos);
       // Persist to store
       const store = new TodoStore(sessionId);

@@ -5,26 +5,7 @@
  */
 
 import React from 'react';
-
-interface Todo {
-  id: string;
-  content: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  priority: 'high' | 'medium' | 'low';
-  subtasks?: Subtask[];
-}
-
-interface Subtask {
-  id: string;
-  content: string;
-  toolCalls?: ToolCall[];
-}
-
-interface ToolCall {
-  id: string;
-  name: string;
-  parameters: Record<string, unknown>;
-}
+import { Todo } from '@vybestack/llxprt-code-core';
 
 interface TodoContextType {
   todos: Todo[];

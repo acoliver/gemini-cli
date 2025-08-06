@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TodoWrite, TodoWriteParams } from './todo-write.js';
 import { TodoStore } from './todo-store.js';
-import { ExtendedTodo } from './todo-schemas.js';
+import { Todo } from './todo-schemas.js';
 
 // Mock TodoStore
 vi.mock('./todo-store.js');
@@ -16,7 +16,7 @@ describe('TodoWrite', () => {
   let tool: TodoWrite;
   const abortSignal = new AbortController().signal;
 
-  const validTodos: ExtendedTodo[] = [
+  const validTodos: Todo[] = [
     {
       id: '1',
       content: 'Test task',
@@ -31,7 +31,7 @@ describe('TodoWrite', () => {
     },
   ];
 
-  const existingTodos: ExtendedTodo[] = [
+  const existingTodos: Todo[] = [
     {
       id: 'old-1',
       content: 'Existing task 1',
@@ -50,7 +50,7 @@ describe('TodoWrite', () => {
       status: 'in_progress',
       priority: 'medium',
     },
-  ];
+  ] as Todo[];
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -79,7 +79,7 @@ describe('TodoWrite', () => {
           status: 'pending',
           priority: 'high',
         },
-      ] as ExtendedTodo[];
+      ] as Todo[];
 
       await expect(
         tool.execute({ todos: invalidTodos }, abortSignal),
@@ -91,8 +91,8 @@ describe('TodoWrite', () => {
         {
           id: '1',
           content: 'Test',
-          status: 'invalid' as unknown as ExtendedTodo['status'],
-          priority: 'high' as ExtendedTodo['priority'],
+          status: 'invalid' as unknown as Todo['status'],
+          priority: 'high' as Todo['priority'],
         },
       ];
 
@@ -106,8 +106,8 @@ describe('TodoWrite', () => {
         {
           id: '1',
           content: 'Test',
-          status: 'pending' as ExtendedTodo['status'],
-          priority: 'urgent' as unknown as ExtendedTodo['priority'],
+          status: 'pending' as Todo['status'],
+          priority: 'urgent' as unknown as Todo['priority'],
         },
       ];
 
@@ -118,7 +118,7 @@ describe('TodoWrite', () => {
 
     it('should completely replace todo list (not merge)', async () => {
       // First verify existing todos, then write single todo
-      const singleTodo: ExtendedTodo[] = [
+      const singleTodo: Todo[] = [
         {
           id: 'new-1',
           content: 'Single replacement task',

@@ -4,73 +4,67 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ExtendedTodo } from './todo-schemas.js';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import * as os from 'node:os';
+import { Todo, TodoArraySchema } from './todo-schemas.js';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 export class TodoStore {
-  private sessionId: string;
-  private agentId?: string;
+  private readonly filePath: string;
 
   constructor(sessionId: string, agentId?: string) {
-    this.sessionId = sessionId;
-    this.agentId = agentId;
+    const todoDir = path.join(os.homedir(), '.llxprt', 'todos');
+    // Ensure directory exists
+    fs.mkdirSync(todoDir, { recursive: true });
+
+    // Create filename based on session and agent
+    const fileName = agentId
+      ? `todo-${sessionId}-${agentId}.json`
+      : `todo-${sessionId}.json`;
+    this.filePath = path.join(todoDir, fileName);
   }
 
-  async readTodos(): Promise<ExtendedTodo[]> {
-    const filePath = this.getFilePath();
+  async readTodos(): Promise<Todo[]> {
     try {
-      const content = await fs.readFile(filePath, 'utf-8');
-      const rawData = JSON.parse(content);
-
-      // If it's already an array of ExtendedTodo, return as is
-      if (Array.isArray(rawData)) {
-        return rawData as ExtendedTodo[];
-      }
-
-      // Handle any unexpected data format
-      return [];
-    } catch (error) {
-      // Return empty array if file doesn't exist
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      // Check if file exists
+      if (!fs.existsSync(this.filePath)) {
         return [];
       }
-      throw error;
-    }
-  }
 
-  async writeTodos(todos: ExtendedTodo[]): Promise<void> {
-    const filePath = this.getFilePath();
-    const dir = path.dirname(filePath);
+      // Read file content
+      const content = await fs.promises.readFile(this.filePath, 'utf8');
 
-    // Create directory if it doesn't exist
-    await fs.mkdir(dir, { recursive: true });
+      // Parse and validate
+      const rawData = JSON.parse(content);
+      const result = TodoArraySchema.safeParse(rawData);
 
-    // Write todos to file
-    await fs.writeFile(filePath, JSON.stringify(todos, null, 2), 'utf-8');
-  }
-
-  async clearTodos(): Promise<void> {
-    const filePath = this.getFilePath();
-    try {
-      await fs.unlink(filePath);
-    } catch (error) {
-      // Ignore if file doesn't exist
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw error;
+      if (!result.success) {
+        // If validation fails, return empty array
+        // In a production system, we might want to handle this differently
+        return [];
       }
+
+      return result.data;
+    } catch (_error) {
+      // If any error occurs, return empty array
+      // In a production system, we might want to handle this differently
+      return [];
     }
   }
 
-  private getFilePath(): string {
-    const homeDir = process.env.HOME || os.homedir();
-    const todosDir = path.join(homeDir, '.llxprt', 'todos');
+  async writeTodos(todos: Todo[]): Promise<void> {
+    // Validate todos before writing
+    const result = TodoArraySchema.safeParse(todos);
+    if (!result.success) {
+      throw new Error('Invalid todo data');
+    }
 
-    const fileName = this.agentId
-      ? `${this.sessionId}-agent-${this.agentId}.json`
-      : `${this.sessionId}.json`;
+    // Ensure directory exists
+    const dir = path.dirname(this.filePath);
+    await fs.promises.mkdir(dir, { recursive: true });
 
-    return path.join(todosDir, fileName);
+    // Write to file
+    const content = JSON.stringify(result.data, null, 2);
+    await fs.promises.writeFile(this.filePath, content, 'utf8');
   }
 }

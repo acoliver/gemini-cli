@@ -5,8 +5,8 @@
  */
 
 import { BaseTool, ToolResult, Icon } from './tools.js';
+import { Todo } from './todo-schemas.js';
 import { TodoStore } from './todo-store.js';
-import { ExtendedTodo } from './todo-schemas.js';
 import { Type } from '@google/genai';
 import { TodoReminderService } from '../services/todo-reminder-service.js';
 
@@ -85,13 +85,13 @@ export class TodoRead extends BaseTool<TodoReadParams, ToolResult> {
     };
   }
 
-  private groupTodosByStatus(todos: ExtendedTodo[]): {
-    inProgress: ExtendedTodo[];
-    pending: ExtendedTodo[];
-    completed: ExtendedTodo[];
+  private groupTodosByStatus(todos: Todo[]): {
+    inProgress: Todo[];
+    pending: Todo[];
+    completed: Todo[];
   } {
     const priorityOrder = { high: 0, medium: 1, low: 2 };
-    const sortByPriority = (a: ExtendedTodo, b: ExtendedTodo) =>
+    const sortByPriority = (a: Todo, b: Todo) =>
       priorityOrder[a.priority] - priorityOrder[b.priority];
 
     return {
@@ -107,7 +107,7 @@ export class TodoRead extends BaseTool<TodoReadParams, ToolResult> {
 
   private formatTodos(
     groupedTodos: ReturnType<typeof this.groupTodosByStatus>,
-    allTodos: ExtendedTodo[],
+    allTodos: Todo[],
   ): string {
     const priorityIndicators = {
       high: '🔴',
@@ -182,7 +182,7 @@ export class TodoRead extends BaseTool<TodoReadParams, ToolResult> {
     return output;
   }
 
-  private calculateStatistics(todos: ExtendedTodo[]): {
+  private calculateStatistics(todos: Todo[]): {
     inProgress: number;
     pending: number;
     completed: number;
@@ -202,7 +202,7 @@ export class TodoRead extends BaseTool<TodoReadParams, ToolResult> {
     };
   }
 
-  private determineSuggestedAction(todos: ExtendedTodo[]): {
+  private determineSuggestedAction(todos: Todo[]): {
     type: 'continue' | 'start' | 'all-complete';
     taskId?: string;
     taskContent?: string;

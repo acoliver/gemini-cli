@@ -6,13 +6,13 @@
 
 import { Type } from '@google/genai';
 import { BaseTool, ToolResult, Icon } from './tools.js';
-import { ExtendedTodo, ExtendedTodoArraySchema } from './todo-schemas.js';
+import { Todo, TodoArraySchema } from './todo-schemas.js';
 import { TodoStore } from './todo-store.js';
 import { TodoReminderService } from '../services/todo-reminder-service.js';
 import { todoEvents, TodoUpdateEvent } from './todo-events.js';
 
 export interface TodoWriteParams {
-  todos: ExtendedTodo[];
+  todos: Todo[];
 }
 
 export class TodoWrite extends BaseTool<TodoWriteParams, ToolResult> {
@@ -117,7 +117,7 @@ export class TodoWrite extends BaseTool<TodoWriteParams, ToolResult> {
     _updateOutput?: (output: string) => void,
   ): Promise<ToolResult> {
     // Validate todos with Zod schema
-    const result = ExtendedTodoArraySchema.safeParse(params.todos);
+    const result = TodoArraySchema.safeParse(params.todos);
     if (!result.success) {
       const error = result.error.errors[0];
       throw new Error(
@@ -190,7 +190,7 @@ export class TodoWrite extends BaseTool<TodoWriteParams, ToolResult> {
     };
   }
 
-  private generateSimplifiedOutput(todos: ExtendedTodo[]): string {
+  private generateSimplifiedOutput(todos: Todo[]): string {
     let output = `## Todo List (${todos.length} tasks)\n`;
 
     for (const todo of todos) {
@@ -210,7 +210,7 @@ export class TodoWrite extends BaseTool<TodoWriteParams, ToolResult> {
     return output;
   }
 
-  private calculateStatistics(todos: ExtendedTodo[]): {
+  private calculateStatistics(todos: Todo[]): {
     total: number;
     inProgress: number;
     pending: number;
@@ -230,7 +230,7 @@ export class TodoWrite extends BaseTool<TodoWriteParams, ToolResult> {
     };
   }
 
-  private determineNextAction(todos: ExtendedTodo[]): {
+  private determineNextAction(todos: Todo[]): {
     type: 'continue' | 'start' | 'all-complete';
     taskId?: string;
     taskContent?: string;

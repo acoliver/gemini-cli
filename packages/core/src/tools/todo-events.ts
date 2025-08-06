@@ -5,12 +5,12 @@
  */
 
 import { EventEmitter } from 'events';
-import { ExtendedTodo } from './todo-schemas.js';
+import { Todo } from './todo-schemas.js';
 
 export interface TodoUpdateEvent {
   sessionId: string;
   agentId?: string;
-  todos: ExtendedTodo[];
+  todos: Todo[];
   timestamp: Date;
 }
 

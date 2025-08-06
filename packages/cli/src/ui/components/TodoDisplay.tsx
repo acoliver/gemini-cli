@@ -7,25 +7,10 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { useTodoContext } from '../contexts/TodoContext.js';
+import { Todo as CoreTodo, Subtask } from '@vybestack/llxprt-code-core';
 
-interface Todo {
-  id: string;
-  content: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  priority: 'high' | 'medium' | 'low';
+interface Todo extends CoreTodo {
   subtasks?: Subtask[];
-}
-
-interface Subtask {
-  id: string;
-  content: string;
-  toolCalls?: ToolCall[];
-}
-
-interface ToolCall {
-  id: string;
-  name: string;
-  parameters: Record<string, unknown>;
 }
 
 const formatParameters = (parameters: Record<string, unknown>): string => {

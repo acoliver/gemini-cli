@@ -8,12 +8,10 @@ import { describe, it, expect } from 'vitest';
 import {
   TodoSchema,
   TodoArraySchema,
+  SubtaskSchema,
+  TodoToolCallSchema,
   TodoStatus,
   TodoPriority,
-  TodoToolCallSchema,
-  SubtaskSchema,
-  ExtendedTodoSchema,
-  ExtendedTodoArraySchema,
 } from './todo-schemas.js';
 
 describe('TodoSchemas', () => {
@@ -269,19 +267,19 @@ describe('TodoSchemas', () => {
     });
   });
 
-  describe('ExtendedTodoSchema', () => {
-    it('should accept valid extended todo without subtasks', () => {
-      const validExtendedTodo = {
+  describe('TodoSchema', () => {
+    it('should accept valid todo without subtasks', () => {
+      const validTodo = {
         id: 'task-1',
         content: 'Implement role-based access control',
         status: 'in_progress',
         priority: 'high',
       };
-      expect(() => ExtendedTodoSchema.parse(validExtendedTodo)).not.toThrow();
+      expect(() => TodoSchema.parse(validTodo)).not.toThrow();
     });
 
-    it('should accept valid extended todo with subtasks', () => {
-      const validExtendedTodoWithSubtasks = {
+    it('should accept valid todo with subtasks', () => {
+      const validTodoWithSubtasks = {
         id: 'task-1',
         content: 'Implement role-based access control',
         status: 'in_progress',
@@ -302,16 +300,14 @@ describe('TodoSchemas', () => {
           },
         ],
       };
-      expect(() =>
-        ExtendedTodoSchema.parse(validExtendedTodoWithSubtasks),
-      ).not.toThrow();
+      expect(() => TodoSchema.parse(validTodoWithSubtasks)).not.toThrow();
     });
 
-    it('should reject extended todo with invalid subtasks', () => {
-      const extendedTodoWithInvalidSubtasks = {
+    it('should reject todo with invalid subtasks', () => {
+      const todoWithInvalidSubtasks = {
         id: 'task-1',
-        content: 'Implement role-based access control',
-        status: 'in_progress',
+        content: 'Test task',
+        status: 'pending',
         priority: 'high',
         subtasks: [
           {
@@ -320,19 +316,17 @@ describe('TodoSchemas', () => {
           },
         ],
       };
-      expect(() =>
-        ExtendedTodoSchema.parse(extendedTodoWithInvalidSubtasks),
-      ).toThrow();
+      expect(() => TodoSchema.parse(todoWithInvalidSubtasks)).toThrow();
     });
   });
 
-  describe('ExtendedTodoArraySchema', () => {
+  describe('TodoArraySchema', () => {
     it('should accept empty array', () => {
-      expect(() => ExtendedTodoArraySchema.parse([])).not.toThrow();
+      expect(() => TodoArraySchema.parse([])).not.toThrow();
     });
 
-    it('should accept array of valid extended todos', () => {
-      const validExtendedTodos = [
+    it('should accept array of valid todos', () => {
+      const validTodos = [
         {
           id: 'task-1',
           content: 'Implement role-based access control',
@@ -361,13 +355,11 @@ describe('TodoSchemas', () => {
           priority: 'medium',
         },
       ];
-      expect(() =>
-        ExtendedTodoArraySchema.parse(validExtendedTodos),
-      ).not.toThrow();
+      expect(() => TodoArraySchema.parse(validTodos)).not.toThrow();
     });
 
-    it('should reject array with invalid extended todos', () => {
-      const invalidExtendedTodos = [
+    it('should reject array with invalid todos', () => {
+      const invalidTodos = [
         {
           id: 'task-1',
           content: 'Valid task',
@@ -381,39 +373,7 @@ describe('TodoSchemas', () => {
           priority: 'high',
         },
       ];
-      expect(() =>
-        ExtendedTodoArraySchema.parse(invalidExtendedTodos),
-      ).toThrow();
-    });
-  });
-
-  describe('Backward compatibility', () => {
-    it('should accept regular todo objects with extended schema', () => {
-      const regularTodo = {
-        id: 'test-1',
-        content: 'Test task',
-        status: 'pending',
-        priority: 'high',
-      };
-      expect(() => ExtendedTodoSchema.parse(regularTodo)).not.toThrow();
-    });
-
-    it('should accept array of regular todos with extended array schema', () => {
-      const regularTodos = [
-        {
-          id: 'test-1',
-          content: 'First task',
-          status: 'pending',
-          priority: 'high',
-        },
-        {
-          id: 'test-2',
-          content: 'Second task',
-          status: 'in_progress',
-          priority: 'medium',
-        },
-      ];
-      expect(() => ExtendedTodoArraySchema.parse(regularTodos)).not.toThrow();
+      expect(() => TodoArraySchema.parse(invalidTodos)).toThrow();
     });
   });
 });

@@ -74,7 +74,7 @@ describe('TodoStore', () => {
         tempDir,
         '.llxprt',
         'todos',
-        `${sessionId}-agent-${agentId}.json`,
+        `todo-${sessionId}-${agentId}.json`,
       );
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
@@ -93,7 +93,7 @@ describe('TodoStore', () => {
         tempDir,
         '.llxprt',
         'todos',
-        `${sessionId}-agent-${agentId}.json`,
+        `todo-${sessionId}-${agentId}.json`,
       );
       expect(fs.existsSync(filePath)).toBe(true);
 
@@ -137,36 +137,6 @@ describe('TodoStore', () => {
 
       const result = await store.readTodos();
       expect(result).toEqual([]);
-    });
-  });
-
-  describe('clearTodos', () => {
-    it('should remove todos file', async () => {
-      // Write todos first
-      await store.writeTodos(sampleTodos);
-
-      // Clear them
-      await store.clearTodos();
-
-      // Verify file is gone
-      const result = await store.readTodos();
-      expect(result).toEqual([]);
-    });
-
-    it('should handle missing file gracefully', async () => {
-      // Ensure file doesn't exist
-      const filePath = path.join(
-        tempDir,
-        '.llxprt',
-        'todos',
-        `${sessionId}-agent-${agentId}.json`,
-      );
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-
-      // Should not throw
-      await expect(store.clearTodos()).resolves.not.toThrow();
     });
   });
 
@@ -231,7 +201,7 @@ describe('TodoStore', () => {
         tempDir,
         '.llxprt',
         'todos',
-        `${sessionId}-agent-${agentId}.json`,
+        `todo-${sessionId}-${agentId}.json`,
       );
       expect(fs.existsSync(expectedPath)).toBe(true);
     });
