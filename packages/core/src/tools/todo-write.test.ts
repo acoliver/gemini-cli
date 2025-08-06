@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TodoWrite, TodoWriteParams } from './todo-write.js';
 import { TodoStore } from './todo-store.js';
-import { Todo } from './todo-schemas.js';
+import { ExtendedTodo } from './todo-schemas.js';
 
 // Mock TodoStore
 vi.mock('./todo-store.js');
@@ -16,7 +16,7 @@ describe('TodoWrite', () => {
   let tool: TodoWrite;
   const abortSignal = new AbortController().signal;
 
-  const validTodos: Todo[] = [
+  const validTodos: ExtendedTodo[] = [
     {
       id: '1',
       content: 'Test task',
@@ -31,7 +31,7 @@ describe('TodoWrite', () => {
     },
   ];
 
-  const existingTodos: Todo[] = [
+  const existingTodos: ExtendedTodo[] = [
     {
       id: 'old-1',
       content: 'Existing task 1',
@@ -65,7 +65,7 @@ describe('TodoWrite', () => {
 
       const result = await tool.execute({ todos: validTodos }, abortSignal);
 
-      expect(result.llmContent).toContain('Total: 2');
+      expect(result.llmContent).toContain('## Todo List (2 tasks)');
       expect(vi.mocked(TodoStore.prototype.writeTodos)).toHaveBeenCalledWith(
         validTodos,
       );
@@ -79,7 +79,7 @@ describe('TodoWrite', () => {
           status: 'pending',
           priority: 'high',
         },
-      ] as Todo[];
+      ] as ExtendedTodo[];
 
       await expect(
         tool.execute({ todos: invalidTodos }, abortSignal),
@@ -91,8 +91,8 @@ describe('TodoWrite', () => {
         {
           id: '1',
           content: 'Test',
-          status: 'invalid' as unknown as Todo['status'],
-          priority: 'high' as Todo['priority'],
+          status: 'invalid' as unknown as ExtendedTodo['status'],
+          priority: 'high' as ExtendedTodo['priority'],
         },
       ];
 
@@ -106,8 +106,8 @@ describe('TodoWrite', () => {
         {
           id: '1',
           content: 'Test',
-          status: 'pending' as Todo['status'],
-          priority: 'urgent' as unknown as Todo['priority'],
+          status: 'pending' as ExtendedTodo['status'],
+          priority: 'urgent' as unknown as ExtendedTodo['priority'],
         },
       ];
 
@@ -118,7 +118,7 @@ describe('TodoWrite', () => {
 
     it('should completely replace todo list (not merge)', async () => {
       // First verify existing todos, then write single todo
-      const singleTodo: Todo[] = [
+      const singleTodo: ExtendedTodo[] = [
         {
           id: 'new-1',
           content: 'Single replacement task',
@@ -135,7 +135,7 @@ describe('TodoWrite', () => {
       expect(vi.mocked(TodoStore.prototype.writeTodos)).toHaveBeenCalledWith(
         singleTodo,
       );
-      expect(result.llmContent).toContain('Total tasks: 1');
+      expect(result.llmContent).toContain('## Todo List (1 tasks)');
     });
 
     it('should handle empty todo list', async () => {
@@ -147,7 +147,7 @@ describe('TodoWrite', () => {
       expect(vi.mocked(TodoStore.prototype.writeTodos)).toHaveBeenCalledWith(
         [],
       );
-      expect(result.llmContent).toContain('Total: 0');
+      expect(result.llmContent).toContain('## Todo List (0 tasks)');
     });
 
     it('should return both old and new todos for diff tracking', async () => {
@@ -156,8 +156,7 @@ describe('TodoWrite', () => {
 
       const result = await tool.execute({ todos: validTodos }, abortSignal);
 
-      expect(result.llmContent).toContain('Removed: 3 tasks');
-      expect(result.llmContent).toContain('Total tasks: 2');
+      expect(result.llmContent).toContain('## Todo List (2 tasks)');
     });
   });
 
@@ -207,16 +206,17 @@ describe('TodoWrite', () => {
         llmContent: expect.any(String),
         returnDisplay: expect.any(String),
       });
-      expect(result.llmContent).toContain('## Todo List Updated');
+      expect(result.llmContent).toContain('## Todo List');
     });
 
-    it('should include summary of changes in output', async () => {
-      vi.mocked(TodoStore.prototype.readTodos).mockResolvedValue(existingTodos);
+    it('should include todos in output', async () => {
+      vi.mocked(TodoStore.prototype.readTodos).mockResolvedValue([]);
       vi.mocked(TodoStore.prototype.writeTodos).mockResolvedValue(undefined);
 
       const result = await tool.execute({ todos: validTodos }, abortSignal);
 
-      expect(result.llmContent).toMatch(/Added.*tasks/);
+      expect(result.llmContent).toContain('- [ ] Test task');
+      expect(result.llmContent).toContain('- [→] ← current Another task');
     });
   });
 
@@ -291,6 +291,30 @@ describe('TodoWrite', () => {
       await expect(
         tool.execute({ todos: validTodos }, abortSignal),
       ).rejects.toThrow('Write failed');
+    });
+  });
+  
+  describe('interactive mode', () => {
+    it('should suppress output in interactive mode', async () => {
+      const interactiveTool = Object.assign(
+        Object.create(Object.getPrototypeOf(tool)),
+        tool,
+      );
+      interactiveTool.context = {
+        sessionId: 'test-session-123',
+        interactiveMode: true,
+      };
+
+      vi.mocked(TodoStore.prototype.readTodos).mockResolvedValue([]);
+      vi.mocked(TodoStore.prototype.writeTodos).mockResolvedValue(undefined);
+
+      const result = await interactiveTool.execute(
+        { todos: validTodos },
+        abortSignal,
+      );
+
+      expect(result.llmContent).toContain('TODO list updated');
+      expect(result.returnDisplay).toBe('');
     });
   });
 });

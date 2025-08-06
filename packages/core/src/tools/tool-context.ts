@@ -9,6 +9,8 @@ export interface ToolContext {
   sessionId: string;
   /** Optional agent identifier for subagent contexts */
   agentId?: string;
+  /** Whether the tool is running in interactive mode */
+  interactiveMode?: boolean;
 }
 
 export interface ContextAwareTool {

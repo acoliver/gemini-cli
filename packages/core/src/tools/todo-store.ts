@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Todo } from './todo-schemas.js';
+import { ExtendedTodo } from './todo-schemas.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -18,11 +18,19 @@ export class TodoStore {
     this.agentId = agentId;
   }
 
-  async readTodos(): Promise<Todo[]> {
+  async readTodos(): Promise<ExtendedTodo[]> {
     const filePath = this.getFilePath();
     try {
       const content = await fs.readFile(filePath, 'utf-8');
-      return JSON.parse(content) as Todo[];
+      const rawData = JSON.parse(content);
+      
+      // If it's already an array of ExtendedTodo, return as is
+      if (Array.isArray(rawData)) {
+        return rawData as ExtendedTodo[];
+      }
+      
+      // Handle any unexpected data format
+      return [];
     } catch (error) {
       // Return empty array if file doesn't exist
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -32,7 +40,7 @@ export class TodoStore {
     }
   }
 
-  async writeTodos(todos: Todo[]): Promise<void> {
+  async writeTodos(todos: ExtendedTodo[]): Promise<void> {
     const filePath = this.getFilePath();
     const dir = path.dirname(filePath);
 

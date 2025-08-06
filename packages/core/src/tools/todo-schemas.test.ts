@@ -10,6 +10,10 @@ import {
   TodoArraySchema,
   TodoStatus,
   TodoPriority,
+  TodoToolCallSchema,
+  SubtaskSchema,
+  ExtendedTodoSchema,
+  ExtendedTodoArraySchema,
 } from './todo-schemas.js';
 
 describe('TodoSchemas', () => {
@@ -168,6 +172,236 @@ describe('TodoSchemas', () => {
       expect(() => TodoArraySchema.parse({})).toThrow();
       expect(() => TodoArraySchema.parse(null)).toThrow();
       expect(() => TodoArraySchema.parse(undefined)).toThrow();
+    });
+  });
+
+  // New tests for extended schemas
+  describe('TodoToolCallSchema', () => {
+    it('should accept valid tool call object', () => {
+      const validToolCall = {
+        id: 'tool-1',
+        name: 'runShellCommand',
+        parameters: {
+          command: 'ls -la',
+        },
+      };
+      expect(() => TodoToolCallSchema.parse(validToolCall)).not.toThrow();
+    });
+
+    it('should accept tool call with empty parameters', () => {
+      const toolCallWithEmptyParams = {
+        id: 'tool-1',
+        name: 'readFile',
+        parameters: {},
+      };
+      expect(() => TodoToolCallSchema.parse(toolCallWithEmptyParams)).not.toThrow();
+    });
+
+    it('should reject tool call with missing fields', () => {
+      const missingId = {
+        name: 'runShellCommand',
+        parameters: {},
+      };
+      expect(() => TodoToolCallSchema.parse(missingId)).toThrow();
+
+      const missingName = {
+        id: 'tool-1',
+        parameters: {},
+      };
+      expect(() => TodoToolCallSchema.parse(missingName)).toThrow();
+
+      const missingParams = {
+        id: 'tool-1',
+        name: 'runShellCommand',
+      };
+      expect(() => TodoToolCallSchema.parse(missingParams)).toThrow();
+    });
+  });
+
+  describe('SubtaskSchema', () => {
+    it('should accept valid subtask object without tool calls', () => {
+      const validSubtask = {
+        id: 'subtask-1',
+        content: 'Implement feature',
+      };
+      expect(() => SubtaskSchema.parse(validSubtask)).not.toThrow();
+    });
+
+    it('should accept valid subtask object with tool calls', () => {
+      const validSubtaskWithToolCalls = {
+        id: 'subtask-1',
+        content: 'Implement feature',
+        toolCalls: [
+          {
+            id: 'tool-1',
+            name: 'runShellCommand',
+            parameters: {
+              command: 'git add .',
+            },
+          },
+        ],
+      };
+      expect(() => SubtaskSchema.parse(validSubtaskWithToolCalls)).not.toThrow();
+    });
+
+    it('should reject subtask with empty content', () => {
+      const invalidSubtask = {
+        id: 'subtask-1',
+        content: '',
+      };
+      expect(() => SubtaskSchema.parse(invalidSubtask)).toThrow();
+    });
+
+    it('should reject subtask with missing fields', () => {
+      const missingId = {
+        content: 'Implement feature',
+      };
+      expect(() => SubtaskSchema.parse(missingId)).toThrow();
+
+      const missingContent = {
+        id: 'subtask-1',
+      };
+      expect(() => SubtaskSchema.parse(missingContent)).toThrow();
+    });
+  });
+
+  describe('ExtendedTodoSchema', () => {
+    it('should accept valid extended todo without subtasks', () => {
+      const validExtendedTodo = {
+        id: 'task-1',
+        content: 'Implement role-based access control',
+        status: 'in_progress',
+        priority: 'high',
+      };
+      expect(() => ExtendedTodoSchema.parse(validExtendedTodo)).not.toThrow();
+    });
+
+    it('should accept valid extended todo with subtasks', () => {
+      const validExtendedTodoWithSubtasks = {
+        id: 'task-1',
+        content: 'Implement role-based access control',
+        status: 'in_progress',
+        priority: 'high',
+        subtasks: [
+          {
+            id: 'subtask-1',
+            content: 'Define role enum',
+            toolCalls: [
+              {
+                id: 'tool-1',
+                name: 'runShellCommand',
+                parameters: {
+                  command: 'git add src/roles.ts',
+                },
+              },
+            ],
+          },
+        ],
+      };
+      expect(() => ExtendedTodoSchema.parse(validExtendedTodoWithSubtasks)).not.toThrow();
+    });
+
+    it('should reject extended todo with invalid subtasks', () => {
+      const extendedTodoWithInvalidSubtasks = {
+        id: 'task-1',
+        content: 'Implement role-based access control',
+        status: 'in_progress',
+        priority: 'high',
+        subtasks: [
+          {
+            id: 'subtask-1',
+            content: '', // Invalid: empty content
+          },
+        ],
+      };
+      expect(() => ExtendedTodoSchema.parse(extendedTodoWithInvalidSubtasks)).toThrow();
+    });
+  });
+
+  describe('ExtendedTodoArraySchema', () => {
+    it('should accept empty array', () => {
+      expect(() => ExtendedTodoArraySchema.parse([])).not.toThrow();
+    });
+
+    it('should accept array of valid extended todos', () => {
+      const validExtendedTodos = [
+        {
+          id: 'task-1',
+          content: 'Implement role-based access control',
+          status: 'in_progress',
+          priority: 'high',
+          subtasks: [
+            {
+              id: 'subtask-1',
+              content: 'Define role enum',
+              toolCalls: [
+                {
+                  id: 'tool-1',
+                  name: 'runShellCommand',
+                  parameters: {
+                    command: 'git add src/roles.ts',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'task-2',
+          content: 'Document security model',
+          status: 'pending',
+          priority: 'medium',
+        },
+      ];
+      expect(() => ExtendedTodoArraySchema.parse(validExtendedTodos)).not.toThrow();
+    });
+
+    it('should reject array with invalid extended todos', () => {
+      const invalidExtendedTodos = [
+        {
+          id: 'task-1',
+          content: 'Valid task',
+          status: 'pending',
+          priority: 'high',
+        },
+        {
+          id: 'task-2',
+          content: '', // Invalid: empty content
+          status: 'pending',
+          priority: 'high',
+        },
+      ];
+      expect(() => ExtendedTodoArraySchema.parse(invalidExtendedTodos)).toThrow();
+    });
+  });
+
+  describe('Backward compatibility', () => {
+    it('should accept regular todo objects with extended schema', () => {
+      const regularTodo = {
+        id: 'test-1',
+        content: 'Test task',
+        status: 'pending',
+        priority: 'high',
+      };
+      expect(() => ExtendedTodoSchema.parse(regularTodo)).not.toThrow();
+    });
+
+    it('should accept array of regular todos with extended array schema', () => {
+      const regularTodos = [
+        {
+          id: 'test-1',
+          content: 'First task',
+          status: 'pending',
+          priority: 'high',
+        },
+        {
+          id: 'test-2',
+          content: 'Second task',
+          status: 'in_progress',
+          priority: 'medium',
+        },
+      ];
+      expect(() => ExtendedTodoArraySchema.parse(regularTodos)).not.toThrow();
     });
   });
 });

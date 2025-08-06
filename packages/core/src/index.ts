@@ -90,6 +90,7 @@ export * from './tools/mcp-client.js';
 export * from './tools/mcp-tool.js';
 export * from './tools/todo-read.js';
 export * from './tools/todo-write.js';
+export { ExtendedTodo } from './tools/todo-schemas.js';
 export * from './tools/todo-schemas.js';
 export * from './tools/todo-store.js';
 
