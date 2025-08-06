@@ -79,11 +79,7 @@ export const TodoDisplay: React.FC = () => {
   const { todos } = useTodoContext();
 
   if (todos.length === 0) {
-    return (
-      <Box>
-        <Text>Todo list is empty – use TodoWrite to add tasks.</Text>
-      </Box>
-    );
+    return null;
   }
 
   let display = '## Todo List (temporal order)\n\n';
