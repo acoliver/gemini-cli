@@ -76,15 +76,26 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({
     [sessionId],
   );
 
+  const clearTodos = useCallback(() => {
+    setTodos([]);
+    const store = new TodoStore(sessionId);
+    store.writeTodos([]).catch((err) => {
+      setError(
+        `Failed to clear todos: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      );
+    });
+  }, [sessionId]);
+
   const contextValue = useMemo(
     () => ({
       todos,
       updateTodos,
       refreshTodos,
+      clearTodos,
       loading,
       error,
     }),
-    [todos, updateTodos, refreshTodos, loading, error],
+    [todos, updateTodos, refreshTodos, clearTodos, loading, error],
   );
 
   return (

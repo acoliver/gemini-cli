@@ -117,6 +117,7 @@ import { ToolsDialog } from './components/ToolsDialog.js';
 
 // Todo UI imports
 import { TodoPanel } from './components/TodoPanel.js';
+import { useTodoContext } from './contexts/TodoContext.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 
@@ -166,6 +167,7 @@ const App = (props: AppInternalProps) => {
   const { stdout } = useStdout();
   const nightly = version.includes('nightly');
   const { history, addItem, clearItems, loadHistory } = useHistory();
+  const { clearTodos } = useTodoContext();
 
   useEffect(() => {
     const cleanup = setUpdateHandler(addItem, setUpdateInfo);
@@ -682,10 +684,12 @@ const App = (props: AppInternalProps) => {
     (submittedValue: string) => {
       const trimmedValue = submittedValue.trim();
       if (trimmedValue.length > 0) {
+        // Clear todos when submitting a new message
+        clearTodos();
         submitQuery(trimmedValue);
       }
     },
-    [submitQuery],
+    [submitQuery, clearTodos],
   );
 
   const buffer = useTextBuffer({
