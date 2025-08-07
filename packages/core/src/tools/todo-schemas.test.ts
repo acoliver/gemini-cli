@@ -182,6 +182,7 @@ describe('TodoSchemas', () => {
         parameters: {
           command: 'ls -la',
         },
+        timestamp: new Date(),
       };
       expect(() => TodoToolCallSchema.parse(validToolCall)).not.toThrow();
     });
@@ -191,6 +192,7 @@ describe('TodoSchemas', () => {
         id: 'tool-1',
         name: 'readFile',
         parameters: {},
+        timestamp: new Date(),
       };
       expect(() =>
         TodoToolCallSchema.parse(toolCallWithEmptyParams),
@@ -238,6 +240,7 @@ describe('TodoSchemas', () => {
             parameters: {
               command: 'git add .',
             },
+            timestamp: new Date(),
           },
         ],
       };
@@ -295,6 +298,7 @@ describe('TodoSchemas', () => {
                 parameters: {
                   command: 'git add src/roles.ts',
                 },
+                timestamp: new Date(),
               },
             ],
           },
@@ -343,6 +347,7 @@ describe('TodoSchemas', () => {
                   parameters: {
                     command: 'git add src/roles.ts',
                   },
+                  timestamp: new Date(),
                 },
               ],
             },

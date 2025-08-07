@@ -160,7 +160,7 @@ describe('TodoStore', () => {
         tempDir,
         '.llxprt',
         'todos',
-        `${sessionId}.json`,
+        `todo-${sessionId}.json`,
       );
       expect(fs.existsSync(filePath)).toBe(true);
     });
