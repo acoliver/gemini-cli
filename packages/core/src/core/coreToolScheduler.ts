@@ -21,6 +21,7 @@ import {
   ToolConfirmationPayload,
   ToolErrorType,
 } from '../index.js';
+import { ToolCallTrackerService } from '../services/tool-call-tracker-service.js';
 import { Part, PartListUnion } from '@google/genai';
 import { getResponseTextFromParts } from '../utils/generateContentResponseUtilities.js';
 import {
@@ -715,6 +716,18 @@ export class CoreToolScheduler {
     const { callId, name: toolName } = scheduledCall.request;
     this.setStatusInternal(callId, 'executing');
 
+    // Start tracking the tool call execution
+    const sessionId =
+      typeof this.config.getSessionId === 'function'
+        ? this.config.getSessionId()
+        : 'default-session';
+
+    const toolCallId = ToolCallTrackerService.startTrackingToolCall(
+      sessionId,
+      toolName,
+      scheduledCall.request.args,
+    );
+
     const liveOutputCallback =
       scheduledCall.tool.canUpdateOutput && this.outputUpdateHandler
         ? (outputChunk: string) => {
@@ -734,12 +747,24 @@ export class CoreToolScheduler {
       .execute(scheduledCall.request.args, signal, liveOutputCallback)
       .then(async (toolResult: ToolResult) => {
         if (signal.aborted) {
+          // Mark tool call as failed if aborted
+          if (toolCallId) {
+            ToolCallTrackerService.failToolCallTracking(sessionId, toolCallId);
+          }
           this.setStatusInternal(
             callId,
             'cancelled',
             'User cancelled tool execution.',
           );
           return;
+        }
+
+        // Mark tool call as completed
+        if (toolCallId) {
+          await ToolCallTrackerService.completeToolCallTracking(
+            sessionId,
+            toolCallId,
+          );
         }
 
         if (toolResult.error === undefined) {
@@ -768,6 +793,11 @@ export class CoreToolScheduler {
         }
       })
       .catch((executionError: Error) => {
+        // Mark tool call as failed on error
+        if (toolCallId) {
+          ToolCallTrackerService.failToolCallTracking(sessionId, toolCallId);
+        }
+
         this.setStatusInternal(
           callId,
           'error',
