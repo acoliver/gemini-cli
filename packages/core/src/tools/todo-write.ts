@@ -10,6 +10,7 @@ import { Todo, TodoArraySchema } from './todo-schemas.js';
 import { TodoStore } from './todo-store.js';
 import { TodoReminderService } from '../services/todo-reminder-service.js';
 import { todoEvents, TodoUpdateEvent } from './todo-events.js';
+import { TodoContextTracker } from '../services/todo-context-tracker.js';
 
 export interface TodoWriteParams {
   todos: Todo[];
@@ -152,8 +153,14 @@ export class TodoWrite extends BaseTool<TodoWriteParams, ToolResult> {
     // Determine if we're in interactive mode
     const isInteractive = this.context?.interactiveMode || false;
 
-    // Emit event for UI update in interactive mode
+    // Set active todo ID if there's an in_progress todo
     if (isInteractive) {
+      const inProgressTodo = params.todos.find(
+        (todo) => todo.status === 'in_progress',
+      );
+      const contextTracker = TodoContextTracker.forSession(sessionId);
+      contextTracker.setActiveTodo(inProgressTodo ? inProgressTodo.id : null);
+
       const event: TodoUpdateEvent = {
         sessionId,
         agentId,
