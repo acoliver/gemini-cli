@@ -44,6 +44,9 @@ export class TodoRead extends BaseTool<TodoReadParams, ToolResult> {
     const sessionId = this.context?.sessionId || 'default';
     const agentId = this.context?.agentId;
 
+    // Determine if we're in interactive mode
+    const isInteractive = this.context?.interactiveMode || false;
+
     const store = new TodoStore(sessionId, agentId);
     const todos = await store.readTodos();
 
@@ -53,14 +56,15 @@ export class TodoRead extends BaseTool<TodoReadParams, ToolResult> {
       const reminder =
         this.reminderService.getReminderForEmptyTodos(isComplexTask);
 
-      const emptyOutput =
-        '## Todo List\n\n' +
-        'No todos found.\n\n' +
-        'Use TodoWrite to create a task list when working on multi-step projects.';
+      const emptyOutput = isInteractive
+        ? 'No todos found.'
+        : '## Todo List\n\n' +
+          'No todos found.\n\n' +
+          'Use TodoWrite to create a task list when working on multi-step projects.';
 
       return {
         llmContent: emptyOutput + (reminder || ''),
-        returnDisplay: emptyOutput,
+        returnDisplay: isInteractive ? '' : emptyOutput, // Suppress display in interactive mode
       };
     }
 
@@ -76,7 +80,7 @@ export class TodoRead extends BaseTool<TodoReadParams, ToolResult> {
 
     return {
       llmContent: output,
-      returnDisplay: output,
+      returnDisplay: isInteractive ? '' : output, // Suppress display in interactive mode
       metadata: {
         totalTasks: todos.length,
         statistics,
