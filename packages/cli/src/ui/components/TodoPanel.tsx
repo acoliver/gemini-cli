@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState, memo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 import { useTodoContext } from '../contexts/TodoContext.js';
 import { useToolCallContext } from '../contexts/ToolCallContext.js';
@@ -195,6 +195,15 @@ const TodoPanelComponent: React.FC<TodoPanelProps> = ({ width }) => {
   const { todos } = useTodoContext();
   const { getExecutingToolCalls, subscribe } = useToolCallContext();
   const [, forceUpdate] = useState({});
+  const [todoCount, setTodoCount] = useState(0);
+
+  // Force re-render when todos change
+  useEffect(() => {
+    if (todos.length !== todoCount) {
+      setTodoCount(todos.length);
+      forceUpdate({});
+    }
+  }, [todos, todoCount]);
 
   // Subscribe to tool call updates to re-render when they change
   useEffect(() => {
@@ -243,5 +252,5 @@ const TodoPanelComponent: React.FC<TodoPanelProps> = ({ width }) => {
   );
 };
 
-// Memoize the component to prevent unnecessary re-renders
-export const TodoPanel = memo(TodoPanelComponent);
+// Export without memo to ensure updates when context changes
+export const TodoPanel = TodoPanelComponent;

@@ -128,13 +128,16 @@ interface AppProps {
 }
 
 import { TodoProvider } from './contexts/TodoProvider.js';
+import { ToolCallProvider } from './contexts/ToolCallProvider.js';
 
 export const AppWrapper = (props: AppProps) => (
   <SessionStatsProvider>
     <VimModeProvider settings={props.settings}>
-      <TodoProvider sessionId={props.config.getSessionId()}>
-        <AppWithState {...props} />
-      </TodoProvider>
+      <ToolCallProvider sessionId={props.config.getSessionId()}>
+        <TodoProvider sessionId={props.config.getSessionId()}>
+          <AppWithState {...props} />
+        </TodoProvider>
+      </ToolCallProvider>
     </VimModeProvider>
   </SessionStatsProvider>
 );
@@ -1023,6 +1026,9 @@ const App = (props: AppInternalProps) => {
             </Box>
           )}
 
+          {/* TodoPanel outside the scrollable area */}
+          <TodoPanel width={inputWidth} />
+
           {shellConfirmationRequest ? (
             <ShellConfirmationDialog request={shellConfirmationRequest} />
           ) : isThemeDialogOpen ? (
@@ -1202,7 +1208,6 @@ const App = (props: AppInternalProps) => {
 
               {isInputActive && (
                 <>
-                  <TodoPanel width={inputWidth} />
                   <InputPrompt
                     buffer={buffer}
                     inputWidth={inputWidth}

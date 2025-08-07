@@ -487,6 +487,7 @@ export class CoreToolScheduler {
             typeof this.config.getSessionId === 'function'
               ? this.config.getSessionId()
               : 'default-session',
+          interactiveMode: true, // Enable interactive mode for UI updates
           // TODO: Add agentId when available in the request
         };
 
