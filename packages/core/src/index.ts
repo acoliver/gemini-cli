@@ -51,6 +51,8 @@ export * from './utils/filesearch/fileSearch.js';
 // Export services
 export * from './services/fileDiscoveryService.js';
 export * from './services/gitService.js';
+export * from './services/tool-call-tracker-service.js';
+export * from './services/todo-context-tracker.js';
 
 // Export IDE specific logic
 export * from './ide/ide-client.js';
@@ -92,6 +94,7 @@ export * from './tools/todo-read.js';
 export * from './tools/todo-write.js';
 export * from './tools/todo-schemas.js';
 export * from './tools/todo-store.js';
+export * from './tools/todo-events.js';
 
 // MCP OAuth
 export { MCPOAuthProvider } from './mcp/oauth-provider.js';

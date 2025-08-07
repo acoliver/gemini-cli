@@ -9,6 +9,8 @@ import { BaseTool, ToolResult, Icon } from './tools.js';
 import { Todo, TodoArraySchema } from './todo-schemas.js';
 import { TodoStore } from './todo-store.js';
 import { TodoReminderService } from '../services/todo-reminder-service.js';
+import { todoEvents, TodoUpdateEvent } from './todo-events.js';
+import { TodoContextTracker } from '../services/todo-context-tracker.js';
 
 export interface TodoWriteParams {
   todos: Todo[];
@@ -50,6 +52,48 @@ export class TodoWrite extends BaseTool<TodoWriteParams, ToolResult> {
                   type: Type.STRING,
                   enum: ['high', 'medium', 'low'],
                   description: 'Priority level of the todo item',
+                },
+                subtasks: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      id: {
+                        type: Type.STRING,
+                        description: 'Unique identifier for the subtask',
+                      },
+                      content: {
+                        type: Type.STRING,
+                        description: 'Description of the subtask',
+                        minLength: '1',
+                      },
+                      toolCalls: {
+                        type: Type.ARRAY,
+                        items: {
+                          type: Type.OBJECT,
+                          properties: {
+                            id: {
+                              type: Type.STRING,
+                              description:
+                                'Unique identifier for the tool call',
+                            },
+                            name: {
+                              type: Type.STRING,
+                              description: 'Name of the tool being called',
+                            },
+                            parameters: {
+                              type: Type.OBJECT,
+                              description: 'Parameters for the tool call',
+                            },
+                          },
+                          required: ['id', 'name', 'parameters'],
+                        },
+                        description: 'Tool calls associated with the subtask',
+                      },
+                    },
+                    required: ['id', 'content'],
+                  },
+                  description: 'Subtasks associated with this todo',
                 },
               },
               required: ['id', 'content', 'status', 'priority'],
@@ -106,15 +150,42 @@ export class TodoWrite extends BaseTool<TodoWriteParams, ToolResult> {
       reminder = this.reminderService.getReminderForStateChange(stateChange);
     }
 
-    // Generate output
-    const output = this.generateOutput(oldTodos, params.todos);
+    // Determine if we're in interactive mode
+    const isInteractive = this.context?.interactiveMode || false;
+
+    // Set active todo ID if there's an in_progress todo
+    if (isInteractive) {
+      const inProgressTodo = params.todos.find(
+        (todo) => todo.status === 'in_progress',
+      );
+      const contextTracker = TodoContextTracker.forSession(sessionId);
+      contextTracker.setActiveTodo(inProgressTodo ? inProgressTodo.id : null);
+
+      const event: TodoUpdateEvent = {
+        sessionId,
+        agentId,
+        todos: params.todos,
+        timestamp: new Date(),
+      };
+      todoEvents.emitTodoUpdated(event);
+    }
+
+    // Generate output based on mode
+    let output: string;
+    if (isInteractive) {
+      // In interactive mode, suppress markdown and return minimal result
+      output = 'TODO list updated';
+    } else {
+      // In non-interactive mode, provide simplified markdown
+      output = this.generateSimplifiedOutput(params.todos);
+    }
 
     const statistics = this.calculateStatistics(params.todos);
     const nextAction = this.determineNextAction(params.todos);
 
     return {
       llmContent: output + (reminder || ''),
-      returnDisplay: output,
+      returnDisplay: isInteractive ? '' : output, // Empty to suppress display in interactive mode
       metadata: {
         stateChanged: this.reminderService.shouldGenerateReminder(stateChange),
         todosAdded: stateChange.added.length,
@@ -126,60 +197,21 @@ export class TodoWrite extends BaseTool<TodoWriteParams, ToolResult> {
     };
   }
 
-  private generateOutput(oldTodos: Todo[], newTodos: Todo[]): string {
-    let output = '## Todo List Updated\n\n';
+  private generateSimplifiedOutput(todos: Todo[]): string {
+    let output = `## Todo List (${todos.length} tasks)\n`;
 
-    // Changes Summary
-    output += '### Changes Summary\n\n';
+    for (const todo of todos) {
+      // Determine status marker
+      let marker = '';
+      if (todo.status === 'completed') {
+        marker = '- [x]';
+      } else if (todo.status === 'pending') {
+        marker = '- [ ]';
+      } else if (todo.status === 'in_progress') {
+        marker = '- [→] ← current';
+      }
 
-    // Calculate changes
-    const added = newTodos.filter(
-      (newTodo) => !oldTodos.some((oldTodo) => oldTodo.id === newTodo.id),
-    );
-
-    const removed = oldTodos.filter(
-      (oldTodo) => !newTodos.some((newTodo) => newTodo.id === oldTodo.id),
-    );
-
-    const statusChanges = newTodos.filter((newTodo) => {
-      const oldTodo = oldTodos.find((t) => t.id === newTodo.id);
-      return oldTodo && oldTodo.status !== newTodo.status;
-    });
-
-    if (added.length > 0) {
-      output += `- Added: ${added.length} task${added.length !== 1 ? 's' : ''}\n`;
-    }
-    if (removed.length > 0) {
-      output += `- Removed: ${removed.length} task${removed.length !== 1 ? 's' : ''}\n`;
-    }
-    if (statusChanges.length > 0) {
-      output += `- Status changed: ${statusChanges.length} task${statusChanges.length !== 1 ? 's' : ''}\n`;
-    }
-    output += `- Total tasks: ${newTodos.length}\n\n`;
-
-    // Task Statistics
-    output += '### Task Statistics\n\n';
-    const stats = this.calculateStatistics(newTodos);
-    output += `- In Progress: ${stats.inProgress}\n`;
-    output += `- Pending: ${stats.pending}\n`;
-    output += `- Completed: ${stats.completed}\n`;
-    output += `- Total: ${stats.total}\n\n`;
-
-    // Priority Breakdown
-    output += 'Priority Breakdown:\n';
-    output += `- High: ${stats.highPriority}\n`;
-    output += `- Medium: ${stats.mediumPriority}\n`;
-    output += `- Low: ${stats.lowPriority}\n\n`;
-
-    // Next Action
-    output += '### Next Action\n\n';
-    const nextAction = this.determineNextAction(newTodos);
-    if (nextAction.type === 'all-complete') {
-      output += 'All tasks completed\n';
-    } else if (nextAction.type === 'continue') {
-      output += `Continue with: ${nextAction.taskContent}\n`;
-    } else if (nextAction.type === 'start') {
-      output += `Start with: ${nextAction.taskContent}\n`;
+      output += `${marker} ${todo.content}\n`;
     }
 
     return output;

@@ -5,8 +5,8 @@
  */
 
 import { BaseTool, ToolResult, Icon } from './tools.js';
-import { TodoStore } from './todo-store.js';
 import { Todo } from './todo-schemas.js';
+import { TodoStore } from './todo-store.js';
 import { Type } from '@google/genai';
 import { TodoReminderService } from '../services/todo-reminder-service.js';
 

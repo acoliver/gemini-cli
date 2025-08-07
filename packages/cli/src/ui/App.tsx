@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
+import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -119,6 +119,10 @@ import { ProviderDialog } from './components/ProviderDialog.js';
 import { LoadProfileDialog } from './components/LoadProfileDialog.js';
 import { ToolsDialog } from './components/ToolsDialog.js';
 
+// Todo UI imports
+import { TodoPanel } from './components/TodoPanel.js';
+import { useTodoContext } from './contexts/TodoContext.js';
+
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 
 interface AppProps {
@@ -128,10 +132,17 @@ interface AppProps {
   version: string;
 }
 
+import { TodoProvider } from './contexts/TodoProvider.js';
+import { ToolCallProvider } from './contexts/ToolCallProvider.js';
+
 export const AppWrapper = (props: AppProps) => (
   <SessionStatsProvider>
     <VimModeProvider settings={props.settings}>
-      <AppWithState {...props} />
+      <ToolCallProvider sessionId={props.config.getSessionId()}>
+        <TodoProvider sessionId={props.config.getSessionId()}>
+          <AppWithState {...props} />
+        </TodoProvider>
+      </ToolCallProvider>
     </VimModeProvider>
   </SessionStatsProvider>
 );
@@ -160,6 +171,7 @@ const App = (props: AppInternalProps) => {
   const { stdout } = useStdout();
   const nightly = version.includes('nightly');
   const { history, addItem, clearItems, loadHistory } = useHistory();
+  const { updateTodos } = useTodoContext();
 
   const [idePromptAnswered, setIdePromptAnswered] = useState(false);
   const currentIDE = config.getIdeClient()?.getCurrentIde();
@@ -710,6 +722,15 @@ const App = (props: AppInternalProps) => {
     [submitQuery],
   );
 
+  const handleUserInputSubmit = useCallback(
+    (submittedValue: string) => {
+      // Clear todos only when user types and submits
+      updateTodos([]);
+      handleFinalSubmit(submittedValue);
+    },
+    [handleFinalSubmit, updateTodos],
+  );
+
   const handleIdePromptComplete = useCallback(
     (result: IdeIntegrationNudgeResult) => {
       if (result === 'yes') {
@@ -731,7 +752,7 @@ const App = (props: AppInternalProps) => {
     [handleSlashCommand, settings],
   );
 
-  const { handleInput: vimHandleInput } = useVim(buffer, handleFinalSubmit);
+  const { handleInput: vimHandleInput } = useVim(buffer, handleUserInputSubmit);
   const pendingHistoryItems = [...pendingSlashCommandHistoryItems];
   pendingHistoryItems.push(...pendingGeminiHistoryItems);
 
@@ -1060,6 +1081,9 @@ const App = (props: AppInternalProps) => {
             </Box>
           )}
 
+          {/* TodoPanel outside the scrollable area */}
+          <TodoPanel width={inputWidth} />
+
           {shouldShowIdePrompt ? (
             <IdeIntegrationNudge
               question="Do you want to connect your VS Code editor to LLxprt Code?"
@@ -1244,22 +1268,24 @@ const App = (props: AppInternalProps) => {
               )}
 
               {isInputActive && (
-                <InputPrompt
-                  buffer={buffer}
-                  inputWidth={inputWidth}
-                  suggestionsWidth={suggestionsWidth}
-                  onSubmit={handleFinalSubmit}
-                  userMessages={userMessages}
-                  onClearScreen={handleClearScreen}
-                  config={config}
-                  slashCommands={slashCommands}
-                  commandContext={commandContext}
-                  shellModeActive={shellModeActive}
-                  setShellModeActive={setShellModeActive}
-                  focus={isFocused}
-                  vimHandleInput={vimHandleInput}
-                  placeholder={placeholder}
-                />
+                <>
+                  <InputPrompt
+                    buffer={buffer}
+                    inputWidth={inputWidth}
+                    suggestionsWidth={suggestionsWidth}
+                    onSubmit={handleUserInputSubmit}
+                    userMessages={userMessages}
+                    onClearScreen={handleClearScreen}
+                    config={config}
+                    slashCommands={slashCommands}
+                    commandContext={commandContext}
+                    shellModeActive={shellModeActive}
+                    setShellModeActive={setShellModeActive}
+                    focus={isFocused}
+                    vimHandleInput={vimHandleInput}
+                    placeholder={placeholder}
+                  />
+                </>
               )}
             </>
           )}

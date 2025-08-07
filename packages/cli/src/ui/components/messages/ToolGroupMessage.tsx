@@ -12,6 +12,7 @@ import { ToolConfirmationMessage } from './ToolConfirmationMessage.js';
 import { Colors } from '../../colors.js';
 import { Config } from '@vybestack/llxprt-code-core';
 import { SHELL_COMMAND_NAME } from '../../constants.js';
+import { useTodoContext } from '../../contexts/TodoContext.js';
 
 interface ToolGroupMessageProps {
   groupId: number;
@@ -30,17 +31,8 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
   config,
   isFocused = true,
 }) => {
-  const hasPending = !toolCalls.every(
-    (t) => t.status === ToolCallStatus.Success,
-  );
-  const isShellCommand = toolCalls.some((t) => t.name === SHELL_COMMAND_NAME);
-  const borderColor =
-    hasPending || isShellCommand ? Colors.AccentYellow : Colors.Gray;
-
-  const staticHeight = /* border */ 2 + /* marginBottom */ 1;
-  // This is a bit of a magic number, but it accounts for the border and
-  // marginLeft.
-  const innerWidth = terminalWidth - 4;
+  const { todos } = useTodoContext();
+  const hasTodoPanel = todos.length > 0;
 
   // only prompt for tool approval on the first 'confirming' tool in the list
   // note, after the CTA, this automatically moves over to the next 'confirming' tool
@@ -49,13 +41,55 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
     [toolCalls],
   );
 
+  // Filter out todo_read completely when panel is visible
+  // and minimize todo_write output
+  const filteredToolCalls = useMemo(() => {
+    if (!hasTodoPanel) return toolCalls;
+
+    return toolCalls
+      .map((tool) => {
+        if (tool.name === 'todo_read') {
+          return null; // Don't show todo_read at all when panel is visible
+        }
+        if (tool.name === 'todo_write') {
+          // Minimize todo_write output when panel is visible
+          return {
+            ...tool,
+            resultDisplay: '✦ Todo list updated.',
+          };
+        }
+        return tool;
+      })
+      .filter(Boolean) as IndividualToolCallDisplay[];
+  }, [toolCalls, hasTodoPanel]);
+
+  // If all tools were filtered out, don't render anything
+  if (filteredToolCalls.length === 0) {
+    return null;
+  }
+
+  const hasPending = !filteredToolCalls.every(
+    (t) => t.status === ToolCallStatus.Success,
+  );
+  const isShellCommand = filteredToolCalls.some(
+    (t) => t.name === SHELL_COMMAND_NAME,
+  );
+  const borderColor =
+    hasPending || isShellCommand ? Colors.AccentYellow : Colors.Gray;
+
+  const staticHeight = /* border */ 2 + /* marginBottom */ 1;
+  // This is a bit of a magic number, but it accounts for the border and
+  // marginLeft.
+  const innerWidth = terminalWidth - 4;
+
   let countToolCallsWithResults = 0;
-  for (const tool of toolCalls) {
+  for (const tool of filteredToolCalls) {
     if (tool.resultDisplay !== undefined && tool.resultDisplay !== '') {
       countToolCallsWithResults++;
     }
   }
-  const countOneLineToolCalls = toolCalls.length - countToolCallsWithResults;
+  const countOneLineToolCalls =
+    filteredToolCalls.length - countToolCallsWithResults;
   const availableTerminalHeightPerToolMessage = availableTerminalHeight
     ? Math.max(
         Math.floor(
@@ -81,7 +115,7 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
       borderDimColor={hasPending}
       borderColor={borderColor}
     >
-      {toolCalls.map((tool) => {
+      {filteredToolCalls.map((tool) => {
         const isConfirming = toolAwaitingApproval?.callId === tool.callId;
         return (
           <Box key={tool.callId} flexDirection="column" minHeight={1}>
