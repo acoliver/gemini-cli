@@ -45,13 +45,18 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({
   // Listen for todo updates
   useEffect(() => {
     const handleTodoUpdate = (eventData: TodoUpdateEvent) => {
+      console.log(
+        `[TODO PROVIDER DEBUG] Received todo update event for session ${eventData.sessionId}`,
+      );
       // Verify this update is for our session
       if (eventData.sessionId === sessionId) {
-        refreshTodos().catch((err) => {
-          setError(
-            `Failed to update TODOs: ${err instanceof Error ? err.message : 'Unknown error'}`,
-          );
-        });
+        console.log(
+          `[TODO PROVIDER DEBUG] Event is for our session, using todos from event`,
+        );
+        // Use the todos from the event instead of re-reading from file
+        // This avoids race conditions with file I/O
+        setTodos(eventData.todos);
+        setError(null);
       }
     };
 
@@ -60,11 +65,10 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({
     return () => {
       todoEvents.offTodoUpdated(handleTodoUpdate);
     };
-  }, [sessionId, refreshTodos]);
+  }, [sessionId]);
 
   const updateTodos = useCallback(
     (newTodos: Todo[]) => {
-      console.log('[DEBUG] Updating todos with new list:', newTodos);
       setTodos(newTodos);
       // Persist to store
       const store = new TodoStore(sessionId);
