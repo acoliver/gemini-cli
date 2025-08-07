@@ -31,17 +31,26 @@ export class ToolCallTrackerService {
     toolName: string,
     parameters: Record<string, unknown>,
   ): Promise<void> {
+    console.log(`[DEBUG] ToolCallTrackerService.recordToolCall called with:`, {
+      sessionId,
+      toolName,
+      parameters,
+    });
+
     // Don't record todo tools themselves
     if (toolName === 'todo_write' || toolName === 'todo_read') {
+      console.log(`[DEBUG] Skipping recording for todo tool: ${toolName}`);
       return;
     }
 
     // Get the context tracker for this session
     const contextTracker = TodoContextTracker.forSession(sessionId);
     const activeTodoId = contextTracker.getActiveTodoId();
+    console.log(`[DEBUG] Active todo ID: ${activeTodoId}`);
 
     // If there's no active todo, don't record the tool call
     if (!activeTodoId) {
+      console.log(`[DEBUG] No active todo, skipping tool call recording`);
       return;
     }
 
@@ -58,10 +67,12 @@ export class ToolCallTrackerService {
 
     // Read the current todos
     const todos = await store.readTodos();
+    console.log(`[DEBUG] Current todos:`, todos);
 
     // If we couldn't read any todos, don't proceed
     // This prevents clearing the UI when there's a read error
     if (!todos || todos.length === 0) {
+      console.log(`[DEBUG] No todos found, skipping tool call recording`);
       return;
     }
 
@@ -82,13 +93,18 @@ export class ToolCallTrackerService {
 
     // If we didn't find the active todo, don't update anything
     if (!todoFound) {
+      console.log(
+        `[DEBUG] Active todo not found in todo list, skipping tool call recording`,
+      );
       return;
     }
 
     // Write the updated todos back to the store
+    console.log(`[DEBUG] Writing updated todos:`, updatedTodos);
     await store.writeTodos(updatedTodos);
 
     // Emit todo update event so UI refreshes
+    console.log(`[DEBUG] Emitting todo update event`);
     todoEvents.emitTodoUpdated({
       sessionId,
       todos: updatedTodos,
@@ -96,6 +112,7 @@ export class ToolCallTrackerService {
     });
 
     // Notify subscribers of the update
+    console.log(`[DEBUG] Notifying subscribers`);
     this.notifySubscribers(sessionId);
   }
 
