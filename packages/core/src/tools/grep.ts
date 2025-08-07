@@ -10,7 +10,14 @@ import path from 'path';
 import { EOL } from 'os';
 import { spawn } from 'child_process';
 import { globStream } from 'glob';
-import { BaseTool, ToolResult, Icon } from './tools.js';
+import {
+  BaseDeclarativeTool,
+  BaseToolInvocation,
+  ToolResult,
+  Icon,
+  ToolInvocation,
+  ToolLocation,
+} from './tools.js';
 import { Type } from '@google/genai';
 import { SchemaValidator } from '../utils/schemaValidator.js';
 import { makeRelative, shortenPath } from '../utils/paths.js';
@@ -59,144 +66,80 @@ interface GrepMatch {
   line: string;
 }
 
-// --- GrepLogic Class ---
-
 /**
- * Implementation of the Grep tool logic (moved from CLI)
+ * Implementation of a single grep tool invocation
  */
-export class GrepTool extends BaseTool<GrepToolParams, ToolResult> {
-  static readonly Name = 'search_file_content'; // Keep static name
-
-  constructor(private readonly config: Config) {
-    super(
-      GrepTool.Name,
-      'SearchFileContent',
-      'Searches for a regular expression pattern within the content of files in a specified directory (or current working directory). Can filter files by a glob pattern. Returns the lines containing matches, along with their file paths and line numbers. IMPORTANT: This tool expects regular expression patterns, not literal strings.',
-      Icon.FileSearch,
-      {
-        properties: {
-          pattern: {
-            description:
-              "The regular expression (regex) pattern to search for within file contents. Special characters like ( ) [ ] { } . * + ? ^ $ \\ | must be escaped with a backslash. Examples: 'openModelDialog\\(' to find 'openModelDialog(', 'function\\s+myFunction' to find function declarations, '\\.test\\.' to find '.test.' in filenames.",
-            type: Type.STRING,
-          },
-          path: {
-            description:
-              'Optional: The absolute path to the directory to search within. If omitted, searches the current working directory.',
-            type: Type.STRING,
-          },
-          include: {
-            description:
-              "Optional: A glob pattern to filter which files are searched (e.g., '*.js', '*.{ts,tsx}', 'src/**'). If omitted, searches all files (respecting potential global ignores).",
-            type: Type.STRING,
-          },
-          max_matches: {
-            description:
-              'Optional: Maximum number of matches to return. If omitted, uses the configured limit (default 50). Set a lower number if you expect many matches to avoid overwhelming output.',
-            type: Type.NUMBER,
-          },
-        },
-        required: ['pattern'],
-        type: Type.OBJECT,
-      },
-    );
+class GrepToolInvocation extends BaseToolInvocation<
+  GrepToolParams,
+  ToolResult
+> {
+  constructor(
+    private readonly config: Config,
+    params: GrepToolParams,
+  ) {
+    super(params);
   }
 
-  // --- Validation Methods ---
-
-  /**
-   * Checks if a path is within the root directory and resolves it.
-   * @param relativePath Path relative to the root directory (or undefined for root).
-   * @returns The absolute path if valid and exists, or null if no path specified (to search all directories).
-   * @throws {Error} If path is outside root, doesn't exist, or isn't a directory.
-   */
-  private resolveAndValidatePath(relativePath?: string): string | null {
-    // If no path specified, return null to indicate searching all workspace directories
-    if (!relativePath) {
-      return null;
+  toolLocations(): ToolLocation[] {
+    if (this.params.path) {
+      const targetPath = path.resolve(
+        this.config.getTargetDir(),
+        this.params.path,
+      );
+      return [{ path: targetPath }];
     }
+    // When no path specified, could search multiple directories
+    return this.config
+      .getWorkspaceContext()
+      .getDirectories()
+      .map((dir) => ({
+        path: dir,
+      }));
+  }
 
-    const targetPath = path.resolve(this.config.getTargetDir(), relativePath);
-
-    // Security Check: Ensure the resolved path is within workspace boundaries
-    const workspaceContext = this.config.getWorkspaceContext();
-    if (!workspaceContext.isPathWithinWorkspace(targetPath)) {
+  getDescription(): string {
+    let description = `'${this.params.pattern}'`;
+    if (this.params.include) {
+      description += ` in ${this.params.include}`;
+    }
+    if (this.params.path) {
+      const resolvedPath = path.resolve(
+        this.config.getTargetDir(),
+        this.params.path,
+      );
+      if (
+        resolvedPath === this.config.getTargetDir() ||
+        this.params.path === '.'
+      ) {
+        description += ` within ./`;
+      } else {
+        const relativePath = makeRelative(
+          resolvedPath,
+          this.config.getTargetDir(),
+        );
+        description += ` within ${shortenPath(relativePath)}`;
+      }
+    } else {
+      // When no path is specified, indicate searching all workspace directories
+      const workspaceContext = this.config.getWorkspaceContext();
       const directories = workspaceContext.getDirectories();
-      throw new Error(
-        `Path validation failed: Attempted path "${relativePath}" resolves outside the allowed workspace directories: ${directories.join(', ')}`,
-      );
-    }
-
-    // Check existence and type after resolving
-    try {
-      const stats = fs.statSync(targetPath);
-      if (!stats.isDirectory()) {
-        throw new Error(`Path is not a directory: ${targetPath}`);
+      if (directories.length > 1) {
+        description += ` across all workspace directories`;
       }
-    } catch (error: unknown) {
-      if (isNodeError(error) && error.code !== 'ENOENT') {
-        throw new Error(`Path does not exist: ${targetPath}`);
-      }
-      throw new Error(
-        `Failed to access path stats for ${targetPath}: ${error}`,
-      );
     }
-
-    return targetPath;
+    return description;
   }
-
-  /**
-   * Validates the parameters for the tool
-   * @param params Parameters to validate
-   * @returns An error message string if invalid, null otherwise
-   */
-  validateToolParams(params: GrepToolParams): string | null {
-    const errors = SchemaValidator.validate(this.schema.parameters, params);
-    if (errors) {
-      return errors;
-    }
-
-    try {
-      new RegExp(params.pattern);
-    } catch (error) {
-      return `Invalid regular expression pattern provided: ${params.pattern}. Error: ${getErrorMessage(error)}`;
-    }
-
-    // Only validate path if one is provided
-    if (params.path) {
-      try {
-        this.resolveAndValidatePath(params.path);
-      } catch (error) {
-        return getErrorMessage(error);
-      }
-    }
-
-    return null; // Parameters are valid
-  }
-
-  // --- Core Execution ---
 
   /**
    * Executes the grep search with the given parameters
-   * @param params Parameters for the grep search
+   * @param signal AbortSignal for cancellation
    * @returns Result of the grep search
    */
-  async execute(
-    params: GrepToolParams,
-    signal: AbortSignal,
-  ): Promise<ToolResult> {
-    const validationError = this.validateToolParams(params);
-    if (validationError) {
-      return {
-        llmContent: `Error: Invalid parameters provided. Reason: ${validationError}`,
-        returnDisplay: `Model provided invalid parameters. Error: ${validationError}`,
-      };
-    }
-
+  async execute(signal: AbortSignal): Promise<ToolResult> {
     try {
       const workspaceContext = this.config.getWorkspaceContext();
-      const searchDirAbs = this.resolveAndValidatePath(params.path);
-      const searchDirDisplay = params.path || '.';
+      const searchDirAbs = this.resolveAndValidatePath(this.params.path);
+      const searchDirDisplay = this.params.path || '.';
 
       // Determine which directories to search
       let searchDirectories: readonly string[];
@@ -212,9 +155,9 @@ export class GrepTool extends BaseTool<GrepToolParams, ToolResult> {
       let allMatches: GrepMatch[] = [];
       for (const searchDir of searchDirectories) {
         const matches = await this.performGrepSearch({
-          pattern: params.pattern,
+          pattern: this.params.pattern,
           path: searchDir,
-          include: params.include,
+          include: this.params.include,
           signal,
         });
 
@@ -241,7 +184,7 @@ export class GrepTool extends BaseTool<GrepToolParams, ToolResult> {
       }
 
       if (allMatches.length === 0) {
-        const noMatchMsg = `No matches found for pattern "${params.pattern}" ${searchLocationDescription}${params.include ? ` (filter: "${params.include}")` : ''}.`;
+        const noMatchMsg = `No matches found for pattern "${this.params.pattern}" ${searchLocationDescription}${this.params.include ? ` (filter: "${this.params.include}")` : ''}.`;
         return { llmContent: noMatchMsg, returnDisplay: `No matches found` };
       }
 
@@ -257,14 +200,14 @@ export class GrepTool extends BaseTool<GrepToolParams, ToolResult> {
       const configMaxItems = ephemeralSettings['tool-output-max-items'] as
         | number
         | undefined;
-      const maxItems = params.max_matches ?? configMaxItems ?? 50;
+      const maxItems = this.params.max_matches ?? configMaxItems ?? 50;
 
       let itemsToProcess = allMatches;
       let itemLimitMessage = '';
 
       if (allMatches.length > maxItems) {
         // If user explicitly set max_matches, always truncate. Otherwise follow configured mode
-        if (params.max_matches) {
+        if (this.params.max_matches) {
           // User explicitly set a limit, so truncate to that limit
           itemsToProcess = allMatches.slice(0, maxItems);
           itemLimitMessage = `\n[Showing first ${maxItems} of ${allMatches.length} matches as requested]`;
@@ -309,7 +252,7 @@ export class GrepTool extends BaseTool<GrepToolParams, ToolResult> {
         {} as Record<string, GrepMatch[]>,
       );
 
-      let llmContent = `Found ${allMatches.length} ${matchTerm} for pattern "${params.pattern}" ${searchLocationDescription}${params.include ? ` (filter: "${params.include}")` : ''}:${itemLimitMessage}
+      let llmContent = `Found ${allMatches.length} ${matchTerm} for pattern "${this.params.pattern}" ${searchLocationDescription}${this.params.include ? ` (filter: "${this.params.include}")` : ''}:${itemLimitMessage}
 ---
 `;
 
@@ -347,6 +290,49 @@ export class GrepTool extends BaseTool<GrepToolParams, ToolResult> {
         returnDisplay: `Error: ${errorMessage}`,
       };
     }
+  }
+
+  // --- Validation Methods ---
+
+  /**
+   * Checks if a path is within the root directory and resolves it.
+   * @param relativePath Path relative to the root directory (or undefined for root).
+   * @returns The absolute path if valid and exists, or null if no path specified (to search all directories).
+   * @throws {Error} If path is outside root, doesn't exist, or isn't a directory.
+   */
+  private resolveAndValidatePath(relativePath?: string): string | null {
+    // If no path specified, return null to indicate searching all workspace directories
+    if (!relativePath) {
+      return null;
+    }
+
+    const targetPath = path.resolve(this.config.getTargetDir(), relativePath);
+
+    // Security Check: Ensure the resolved path is within workspace boundaries
+    const workspaceContext = this.config.getWorkspaceContext();
+    if (!workspaceContext.isPathWithinWorkspace(targetPath)) {
+      const directories = workspaceContext.getDirectories();
+      throw new Error(
+        `Path validation failed: Attempted path "${relativePath}" resolves outside the allowed workspace directories: ${directories.join(', ')}`,
+      );
+    }
+
+    // Check existence and type after resolving
+    try {
+      const stats = fs.statSync(targetPath);
+      if (!stats.isDirectory()) {
+        throw new Error(`Path is not a directory: ${targetPath}`);
+      }
+    } catch (error: unknown) {
+      if (isNodeError(error) && error.code !== 'ENOENT') {
+        throw new Error(`Path does not exist: ${targetPath}`);
+      }
+      throw new Error(
+        `Failed to access path stats for ${targetPath}: ${error}`,
+      );
+    }
+
+    return targetPath;
   }
 
   // --- Grep Implementation Logic ---
@@ -421,41 +407,6 @@ export class GrepTool extends BaseTool<GrepToolParams, ToolResult> {
       }
     }
     return results;
-  }
-
-  /**
-   * Gets a description of the grep operation
-   * @param params Parameters for the grep operation
-   * @returns A string describing the grep
-   */
-  getDescription(params: GrepToolParams): string {
-    let description = `'${params.pattern}'`;
-    if (params.include) {
-      description += ` in ${params.include}`;
-    }
-    if (params.path) {
-      const resolvedPath = path.resolve(
-        this.config.getTargetDir(),
-        params.path,
-      );
-      if (resolvedPath === this.config.getTargetDir() || params.path === '.') {
-        description += ` within ./`;
-      } else {
-        const relativePath = makeRelative(
-          resolvedPath,
-          this.config.getTargetDir(),
-        );
-        description += ` within ${shortenPath(relativePath)}`;
-      }
-    } else {
-      // When no path is specified, indicate searching all workspace directories
-      const workspaceContext = this.config.getWorkspaceContext();
-      const directories = workspaceContext.getDirectories();
-      if (directories.length > 1) {
-        description += ` across all workspace directories`;
-      }
-    }
-    return description;
   }
 
   /**
@@ -664,5 +615,89 @@ export class GrepTool extends BaseTool<GrepToolParams, ToolResult> {
       );
       throw error; // Re-throw
     }
+  }
+}
+
+// --- GrepTool Class ---
+
+/**
+ * Implementation of the Grep tool logic
+ */
+export class GrepTool extends BaseDeclarativeTool<GrepToolParams, ToolResult> {
+  static readonly Name = 'search_file_content'; // Keep static name
+
+  constructor(private readonly config: Config) {
+    super(
+      GrepTool.Name,
+      'SearchFileContent',
+      'Searches for a regular expression pattern within the content of files in a specified directory (or current working directory). Can filter files by a glob pattern. Returns the lines containing matches, along with their file paths and line numbers. IMPORTANT: This tool expects regular expression patterns, not literal strings.',
+      Icon.FileSearch,
+      {
+        properties: {
+          pattern: {
+            description:
+              "The regular expression (regex) pattern to search for within file contents. Special characters like ( ) [ ] { } . * + ? ^ $ \\ | must be escaped with a backslash. Examples: 'openModelDialog\\(' to find 'openModelDialog(', 'function\\s+myFunction' to find function declarations, '\\.test\\.' to find '.test.' in filenames.",
+            type: Type.STRING,
+          },
+          path: {
+            description:
+              'Optional: The absolute path to the directory to search within. If omitted, searches the current working directory.',
+            type: Type.STRING,
+          },
+          include: {
+            description:
+              "Optional: A glob pattern to filter which files are searched (e.g., '*.js', '*.{ts,tsx}', 'src/**'). If omitted, searches all files (respecting potential global ignores).",
+            type: Type.STRING,
+          },
+          max_matches: {
+            description:
+              'Optional: Maximum number of matches to return. If omitted, uses the configured limit (default 50). Set a lower number if you expect many matches to avoid overwhelming output.',
+            type: Type.NUMBER,
+          },
+        },
+        required: ['pattern'],
+        type: Type.OBJECT,
+      },
+    );
+  }
+
+  /**
+   * Validates the parameters for the tool
+   * @param params Parameters to validate
+   * @returns An error message string if invalid, null otherwise
+   */
+  validateToolParams(params: GrepToolParams): string | null {
+    const errors = SchemaValidator.validate(this.schema.parameters, params);
+    if (errors) {
+      return errors;
+    }
+
+    try {
+      new RegExp(params.pattern);
+    } catch (error) {
+      return `Invalid regular expression pattern provided: ${params.pattern}. Error: ${getErrorMessage(error)}`;
+    }
+
+    // Only validate path if one is provided
+    if (params.path) {
+      try {
+        // Create a temporary invocation to use its validation method
+        const invocation = new GrepToolInvocation(this.config, params);
+        invocation['resolveAndValidatePath'](params.path);
+      } catch (error) {
+        return getErrorMessage(error);
+      }
+    }
+
+    return null; // Parameters are valid
+  }
+
+  /**
+   * Creates an invocation for the given parameters
+   */
+  protected createInvocation(
+    params: GrepToolParams,
+  ): ToolInvocation<GrepToolParams, ToolResult> {
+    return new GrepToolInvocation(this.config, params);
   }
 }

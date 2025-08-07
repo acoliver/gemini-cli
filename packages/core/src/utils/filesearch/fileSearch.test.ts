@@ -9,7 +9,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as cache from './crawlCache.js';
 import { FileSearch, AbortError, filter } from './fileSearch.js';
-import { createTmpDir, cleanupTmpDir } from '@google/gemini-cli-test-utils';
+import { createTmpDir, cleanupTmpDir } from '@vybestack/llxprt-code-test-utils';
 
 type FileSearchWithPrivateMethods = FileSearch & {
   performCrawl: () => Promise<void>;

@@ -202,6 +202,179 @@ export abstract class BaseTool<
   ): Promise<TResult>;
 }
 
+/**
+ * Represents a single invocation of a tool with specific parameters.
+ * This separates the tool definition from its execution.
+ */
+export interface ToolInvocation<
+  TParams extends object,
+  TResult extends ToolResult,
+> {
+  /**
+   * The parameters for this invocation
+   */
+  readonly params: TParams;
+
+  /**
+   * Gets a description of what this invocation will do
+   */
+  getDescription(): string;
+
+  /**
+   * Determines file system paths this invocation will affect
+   */
+  toolLocations(): ToolLocation[];
+
+  /**
+   * Determines if this invocation should prompt for confirmation
+   */
+  shouldConfirmExecute(
+    abortSignal: AbortSignal,
+  ): Promise<ToolCallConfirmationDetails | false>;
+
+  /**
+   * Executes this invocation
+   */
+  execute(
+    signal: AbortSignal,
+    updateOutput?: (output: string) => void,
+  ): Promise<TResult>;
+}
+
+/**
+ * A convenience base class for ToolInvocation.
+ */
+export abstract class BaseToolInvocation<
+  TParams extends object,
+  TResult extends ToolResult,
+> implements ToolInvocation<TParams, TResult>
+{
+  constructor(readonly params: TParams) {}
+
+  abstract getDescription(): string;
+
+  toolLocations(): ToolLocation[] {
+    return [];
+  }
+
+  shouldConfirmExecute(
+    _abortSignal: AbortSignal,
+  ): Promise<ToolCallConfirmationDetails | false> {
+    return Promise.resolve(false);
+  }
+
+  abstract execute(
+    signal: AbortSignal,
+    updateOutput?: (output: string) => void,
+  ): Promise<TResult>;
+}
+
+/**
+ * A type alias for a tool invocation where the specific parameter and result types are not known.
+ */
+export type AnyToolInvocation = ToolInvocation<object, ToolResult>;
+
+/**
+ * Base class for declarative tools that create invocations
+ */
+export abstract class BaseDeclarativeTool<
+  TParams extends object,
+  TResult extends ToolResult,
+> extends BaseTool<TParams, TResult> {
+  /**
+   * Validates parameters and creates an invocation if valid.
+   * @throws Error if parameters are invalid
+   */
+  build(params: TParams): ToolInvocation<TParams, TResult> {
+    const validationError = this.validateToolParams(params);
+    if (validationError) {
+      throw new Error(`Invalid tool parameters: ${validationError}`);
+    }
+    return this.createInvocation(params);
+  }
+
+  /**
+   * Creates an invocation for the given parameters.
+   * Called by build() after validation.
+   */
+  protected abstract createInvocation(
+    params: TParams,
+  ): ToolInvocation<TParams, TResult>;
+
+  /**
+   * Legacy execute method - creates invocation and executes it
+   */
+  async execute(
+    params: TParams,
+    signal: AbortSignal,
+    updateOutput?: (output: string) => void,
+  ): Promise<TResult> {
+    try {
+      const invocation = this.build(params);
+      return invocation.execute(signal, updateOutput);
+    } catch (error) {
+      // If build fails due to validation, return error result
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      // Extract the validation error message
+      const validationMatch = errorMessage.match(
+        /Invalid tool parameters: (.+)/,
+      );
+      const validationError = validationMatch
+        ? validationMatch[1]
+        : errorMessage;
+
+      return {
+        llmContent: `Error: Invalid parameters provided. Reason: ${validationError}`,
+        returnDisplay: `Model provided invalid parameters. Error: ${validationError}`,
+        error: {
+          message: errorMessage,
+          type: ToolErrorType.INVALID_TOOL_PARAMS,
+        },
+      } as TResult;
+    }
+  }
+
+  /**
+   * Legacy shouldConfirmExecute - creates invocation and checks confirmation
+   */
+  async shouldConfirmExecute(
+    params: TParams,
+    abortSignal: AbortSignal,
+  ): Promise<ToolCallConfirmationDetails | false> {
+    try {
+      const invocation = this.build(params);
+      return invocation.shouldConfirmExecute(abortSignal);
+    } catch (_error) {
+      // If build fails due to validation, return false (no confirmation needed)
+      return false;
+    }
+  }
+
+  /**
+   * Legacy getDescription - creates invocation and gets description
+   */
+  getDescription(params: TParams): string {
+    try {
+      const invocation = this.build(params);
+      return invocation.getDescription();
+    } catch (_error) {
+      // If validation fails, create invocation directly without validation
+      // This maintains backward compatibility for tests that expect getDescription
+      // to work even with invalid parameters
+      return this.createInvocation(params).getDescription();
+    }
+  }
+
+  /**
+   * Legacy toolLocations - creates invocation and gets locations
+   */
+  toolLocations(params: TParams): ToolLocation[] {
+    const invocation = this.build(params);
+    return invocation.toolLocations();
+  }
+}
+
 export interface ToolResult {
   /**
    * A short, one-line summary of the tool's action and result.
