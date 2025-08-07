@@ -45,14 +45,8 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({
   // Listen for todo updates
   useEffect(() => {
     const handleTodoUpdate = (eventData: TodoUpdateEvent) => {
-      console.log(
-        `[TODO PROVIDER DEBUG] Received todo update event for session ${eventData.sessionId}`,
-      );
       // Verify this update is for our session
       if (eventData.sessionId === sessionId) {
-        console.log(
-          `[TODO PROVIDER DEBUG] Event is for our session, using todos from event`,
-        );
         // Use the todos from the event instead of re-reading from file
         // This avoids race conditions with file I/O
         setTodos(eventData.todos);
