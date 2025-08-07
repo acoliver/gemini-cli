@@ -116,7 +116,7 @@ import { LoadProfileDialog } from './components/LoadProfileDialog.js';
 import { ToolsDialog } from './components/ToolsDialog.js';
 
 // Todo UI imports
-import { TodoDisplay } from './components/TodoDisplay.js';
+import { TodoPanel } from './components/TodoPanel.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 
@@ -1202,7 +1202,7 @@ const App = (props: AppInternalProps) => {
 
               {isInputActive && (
                 <>
-                  <TodoDisplay />
+                  <TodoPanel width={inputWidth} />
                   <InputPrompt
                     buffer={buffer}
                     inputWidth={inputWidth}
