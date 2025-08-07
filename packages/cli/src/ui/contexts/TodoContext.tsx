@@ -11,7 +11,6 @@ interface TodoContextType {
   todos: Todo[];
   updateTodos: (todos: Todo[]) => void;
   refreshTodos: () => void;
-  clearTodos: () => void;
 }
 
 const defaultContextValue: TodoContextType = {
@@ -20,9 +19,6 @@ const defaultContextValue: TodoContextType = {
     throw new Error('NotYetImplemented');
   },
   refreshTodos: () => {
-    throw new Error('NotYetImplemented');
-  },
-  clearTodos: () => {
     throw new Error('NotYetImplemented');
   },
 };

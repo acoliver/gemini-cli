@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
+import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -167,7 +167,7 @@ const App = (props: AppInternalProps) => {
   const { stdout } = useStdout();
   const nightly = version.includes('nightly');
   const { history, addItem, clearItems, loadHistory } = useHistory();
-  const { clearTodos } = useTodoContext();
+  const { updateTodos } = useTodoContext();
 
   useEffect(() => {
     const cleanup = setUpdateHandler(addItem, setUpdateInfo);
@@ -387,6 +387,24 @@ const App = (props: AppInternalProps) => {
 
     return () => clearInterval(interval);
   }, [config, providerManager, currentModel]); // Include currentModel in dependencies
+
+  // Clear todos when user sends a new message
+  const previousHistoryLengthRef = useRef(history.length);
+  useEffect(() => {
+    // Check if a new user message was added to the history
+    if (history.length > previousHistoryLengthRef.current) {
+      const newItems = history.slice(previousHistoryLengthRef.current);
+      const hasNewUserMessage = newItems.some((item) => item.type === 'user');
+
+      if (hasNewUserMessage) {
+        // Clear the todo list
+        updateTodos([]);
+      }
+    }
+
+    // Update the ref to the current history length
+    previousHistoryLengthRef.current = history.length;
+  }, [history, updateTodos]);
 
   const toggleCorgiMode = useCallback(() => {
     setCorgiMode((prev) => !prev);
@@ -684,12 +702,10 @@ const App = (props: AppInternalProps) => {
     (submittedValue: string) => {
       const trimmedValue = submittedValue.trim();
       if (trimmedValue.length > 0) {
-        // Clear todos when submitting a new message
-        clearTodos();
         submitQuery(trimmedValue);
       }
     },
-    [submitQuery, clearTodos],
+    [submitQuery],
   );
 
   const buffer = useTextBuffer({
