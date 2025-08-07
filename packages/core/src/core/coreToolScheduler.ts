@@ -722,16 +722,11 @@ export class CoreToolScheduler {
         ? this.config.getSessionId()
         : 'default-session';
 
-    console.log(
-      `[DEBUG] Starting to track tool call: ${toolName}`,
-      scheduledCall.request.args,
-    );
     const toolCallId = ToolCallTrackerService.startTrackingToolCall(
       sessionId,
       toolName,
       scheduledCall.request.args,
     );
-    console.log(`[DEBUG] Tool call tracking ID: ${toolCallId}`);
 
     const liveOutputCallback =
       scheduledCall.tool.canUpdateOutput && this.outputUpdateHandler
