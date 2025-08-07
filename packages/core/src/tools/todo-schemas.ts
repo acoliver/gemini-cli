@@ -13,6 +13,7 @@ export const TodoToolCallSchema = z.object({
   id: z.string(),
   name: z.string(),
   parameters: z.record(z.any()),
+  timestamp: z.date(),
 });
 
 export const SubtaskSchema = z.object({
@@ -27,6 +28,7 @@ export const TodoSchema = z.object({
   status: TodoStatus,
   priority: TodoPriority,
   subtasks: z.array(SubtaskSchema).optional(),
+  toolCalls: z.array(TodoToolCallSchema).optional(),
 });
 
 export const TodoArraySchema = z.array(TodoSchema);
