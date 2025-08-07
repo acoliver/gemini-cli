@@ -64,6 +64,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({
 
   const updateTodos = useCallback(
     (newTodos: Todo[]) => {
+      console.log('[DEBUG] Updating todos with new list:', newTodos);
       setTodos(newTodos);
       // Persist to store
       const store = new TodoStore(sessionId);

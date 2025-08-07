@@ -685,6 +685,9 @@ const App = (props: AppInternalProps) => {
       const trimmedValue = submittedValue.trim();
       if (trimmedValue.length > 0) {
         // Clear todos when user submits a new message
+        console.log(
+          '[DEBUG] Clearing todos because user submitted a new message',
+        );
         updateTodos([]);
         submitQuery(trimmedValue);
       }
