@@ -107,17 +107,25 @@ export class ToolCallTrackerService {
     toolName: string,
     parameters: Record<string, unknown>,
   ): string | null {
+    console.log(
+      `[DEBUG] ToolCallTrackerService.startTrackingToolCall called with:`,
+      { sessionId, toolName, parameters },
+    );
+
     // Don't track todo tools themselves
     if (toolName === 'todo_write' || toolName === 'todo_read') {
+      console.log(`[DEBUG] Skipping tracking for todo tool: ${toolName}`);
       return null;
     }
 
     // Get the context tracker for this session
     const contextTracker = TodoContextTracker.forSession(sessionId);
     const activeTodoId = contextTracker.getActiveTodoId();
+    console.log(`[DEBUG] Active todo ID: ${activeTodoId}`);
 
     // If there's no active todo, don't track the tool call
     if (!activeTodoId) {
+      console.log(`[DEBUG] No active todo, skipping tool call tracking`);
       return null;
     }
 
@@ -146,6 +154,7 @@ export class ToolCallTrackerService {
 
     // Add the tool call to the map
     todoCalls.set(toolCallId, toolCall);
+    console.log(`[DEBUG] Added tool call to tracking:`, toolCall);
 
     // Notify subscribers of the update
     this.notifySubscribers(sessionId);
